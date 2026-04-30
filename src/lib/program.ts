@@ -6,11 +6,15 @@ export interface OrderItem {
 
 export interface Program {
   id: string;
+  themeId: string;
   name: string;
+  subtitle?: string; // e.g. "Beloved wife, mother and grandmother"
   dob: string;
   dop: string;
   profilePhoto?: string; // data URL
-  tribute: string;
+  tribute: string; // short cover tribute / dates strap
+  obituary?: string; // longer life story
+  voteOfThanks?: string;
   order: OrderItem[];
   gallery: string[]; // data URLs
   createdAt: number;

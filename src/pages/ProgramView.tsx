@@ -3,8 +3,32 @@ import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, ArrowLeft, Printer } from "lucide-react";
 import { getProgram, formatDate, type Program } from "@/lib/program";
+import { getTheme } from "@/lib/themes";
 import { toast } from "sonner";
-import oliveBranch from "@/assets/olive-branch.png";
+
+/** A single framed "page" of the program. */
+const Page = ({ frame, paper, children }: { frame: string; paper: string; children: React.ReactNode }) => (
+  <div
+    className="relative mx-auto w-full overflow-hidden rounded-md shadow-paper print:shadow-none"
+    style={{
+      aspectRatio: "3 / 4",
+      maxWidth: "640px",
+      background: `hsl(${paper})`,
+    }}
+  >
+    {/* Frame overlay */}
+    <img
+      src={frame}
+      alt=""
+      aria-hidden
+      className="pointer-events-none absolute inset-0 h-full w-full select-none"
+    />
+    {/* Inner content area, inset from the gold border */}
+    <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-[12%] py-[14%] text-center">
+      {children}
+    </div>
+  </div>
+);
 
 const ProgramView = () => {
   const { id } = useParams();
@@ -14,9 +38,8 @@ const ProgramView = () => {
 
   useEffect(() => {
     if (!id) return;
-    setProgram(getProgram(id));
-    // Show share banner only if just created (within ~10s)
     const p = getProgram(id);
+    setProgram(p);
     if (p && Date.now() - p.createdAt < 10_000) setShowShare(true);
   }, [id]);
 
@@ -27,7 +50,6 @@ const ProgramView = () => {
   if (program === undefined) {
     return <div className="flex min-h-screen items-center justify-center bg-gradient-warm text-whisper">Loading…</div>;
   }
-
   if (program === null) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gradient-warm px-6 text-center">
@@ -38,6 +60,7 @@ const ProgramView = () => {
     );
   }
 
+  const theme = getTheme(program.themeId);
   const url = window.location.href;
   const copy = async () => {
     try {
@@ -45,16 +68,22 @@ const ProgramView = () => {
       setCopied(true);
       toast.success("Link copied");
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error("Could not copy");
-    }
+    } catch { toast.error("Could not copy"); }
   };
 
   const year = (d: string) => (d ? new Date(d).getFullYear() : "");
+  const accent = theme.accent;
+  const ink = theme.ink;
+  const soft = theme.soft;
+
+  // Split name: first line is family/last name (caps), second line is given names (italic).
+  const parts = program.name.trim().split(/\s+/);
+  const lastName = parts.length > 1 ? parts[parts.length - 1] : program.name;
+  const givenNames = parts.length > 1 ? parts.slice(0, -1).join(" ") : "";
 
   return (
     <div className="min-h-screen bg-gradient-warm">
-      {/* Share banner (after creation) */}
+      {/* Share banner */}
       {showShare && (
         <div className="border-b border-gold/20 bg-cream/60 print:hidden">
           <div className="container flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between">
@@ -89,84 +118,122 @@ const ProgramView = () => {
         </div>
       </header>
 
-      {/* Program */}
-      <article className="container max-w-2xl pb-20 fade-in">
-        <div className="overflow-hidden rounded-2xl bg-card shadow-paper">
-          {/* Cover */}
-          <section className="px-6 pb-10 pt-12 text-center md:px-12 md:pt-16">
-            <p className="text-xs uppercase tracking-[0.35em] text-gold">In loving memory</p>
+      {/* Pages */}
+      <article className="container max-w-3xl space-y-10 pb-20 fade-in">
+        {/* PAGE 1 — COVER */}
+        <Page frame={theme.frame} paper={theme.paper}>
+          <p className="font-serif text-xl italic md:text-2xl" style={{ color: `hsl(${accent})` }}>
+            In loving memory of
+          </p>
 
-            {program.profilePhoto && (
-              <div className="mx-auto mt-8 h-44 w-44 overflow-hidden rounded-full border-4 border-gold/40 shadow-soft md:h-56 md:w-56">
-                <img src={program.profilePhoto} alt={program.name} className="h-full w-full object-cover" />
-              </div>
-            )}
-
-            <h1 className="mt-8 font-serif text-4xl leading-tight text-ink md:text-5xl">{program.name}</h1>
-
-            <p className="mt-3 font-serif text-xl italic text-whisper">
-              {year(program.dob)} — {year(program.dop)}
-            </p>
-
-            <div className="mx-auto mt-6 flex items-center justify-center gap-3">
-              <span className="h-px w-16 bg-gold/50" />
-              <img src={oliveBranch} alt="" className="h-6 w-auto opacity-70" />
-              <span className="h-px w-16 bg-gold/50" />
+          {program.profilePhoto && (
+            <div
+              className="mx-auto mt-5 h-24 w-24 overflow-hidden rounded-full border-[3px] shadow-soft md:h-28 md:w-28"
+              style={{ borderColor: `hsl(${accent} / 0.5)` }}
+            >
+              <img src={program.profilePhoto} alt={program.name} className="h-full w-full object-cover" />
             </div>
-
-            <p className="mt-6 text-sm text-whisper">
-              {formatDate(program.dob)} <span className="mx-2 text-gold">·</span> {formatDate(program.dop)}
-            </p>
-          </section>
-
-          {/* Tribute */}
-          <section className="border-t border-border/60 px-6 py-12 md:px-12">
-            <h2 className="text-center text-xs uppercase tracking-[0.3em] text-gold">A tribute</h2>
-            <p className="mt-6 whitespace-pre-line text-center font-serif text-xl leading-relaxed text-ink md:text-2xl">
-              {program.tribute}
-            </p>
-          </section>
-
-          {/* Order of service */}
-          <section className="border-t border-border/60 bg-cream/40 px-6 py-12 md:px-12">
-            <h2 className="text-center text-xs uppercase tracking-[0.3em] text-gold">Order of service</h2>
-            <ol className="mx-auto mt-8 max-w-md space-y-4">
-              {program.order.map((item, i) => (
-                <li key={item.id} className="flex gap-4 border-b border-border/60 pb-3 last:border-0">
-                  <span className="font-serif text-2xl text-gold">{String(i + 1).padStart(2, "0")}</span>
-                  <div>
-                    <p className="font-serif text-lg text-ink">{item.title}</p>
-                    {item.by && <p className="text-sm italic text-whisper">{item.by}</p>}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </section>
-
-          {/* Gallery */}
-          {program.gallery.length > 0 && (
-            <section className="border-t border-border/60 px-6 py-12 md:px-12">
-              <h2 className="text-center text-xs uppercase tracking-[0.3em] text-gold">Cherished moments</h2>
-              <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3">
-                {program.gallery.map((src, i) => (
-                  <div key={i} className="aspect-square overflow-hidden rounded-lg shadow-soft">
-                    <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" />
-                  </div>
-                ))}
-              </div>
-            </section>
           )}
 
-          {/* Footer */}
-          <section className="border-t border-border/60 px-6 py-10 text-center md:px-12">
-            <p className="font-serif text-lg italic text-whisper">
-              "Those we love don't go away, they walk beside us every day."
+          <h1
+            className="mt-6 font-serif text-3xl uppercase tracking-wide md:text-5xl"
+            style={{ color: `hsl(${ink})` }}
+          >
+            {lastName}
+          </h1>
+          {givenNames && (
+            <p
+              className="mt-2 font-serif text-2xl italic md:text-3xl"
+              style={{ color: `hsl(${accent})` }}
+            >
+              {givenNames}
             </p>
-          </section>
-        </div>
+          )}
 
-        <p className="mt-6 text-center text-xs text-whisper print:hidden">
-          Created with <Link to="/" className="text-gold hover:underline">Eventify</Link>
+          <p className="mt-6 font-serif text-sm italic md:text-base" style={{ color: `hsl(${soft})` }}>
+            {formatDate(program.dob)} — {formatDate(program.dop)}
+          </p>
+
+          {program.subtitle && (
+            <p className="mt-5 font-serif text-base italic md:text-lg" style={{ color: `hsl(${soft})` }}>
+              {program.subtitle}
+            </p>
+          )}
+          {!program.subtitle && program.tribute && (
+            <p className="mt-5 font-serif text-base italic md:text-lg" style={{ color: `hsl(${soft})` }}>
+              {program.tribute}
+            </p>
+          )}
+        </Page>
+
+        {/* PAGE 2 — ORDER OF SERVICE */}
+        <Page frame={theme.frame} paper={theme.paper}>
+          <h2 className="font-serif text-3xl italic md:text-4xl" style={{ color: `hsl(${accent})` }}>
+            Order Of Service
+          </h2>
+
+          <ul className="mt-6 w-full max-w-sm space-y-2.5 text-left">
+            {program.order.map((item) => (
+              <li key={item.id} className="grid grid-cols-[1fr_auto_1fr] items-baseline gap-3 text-sm md:text-base">
+                <span className="font-medium uppercase tracking-wide" style={{ color: `hsl(${ink})` }}>
+                  {item.title}
+                </span>
+                <span style={{ color: `hsl(${soft})` }}>:</span>
+                <span className="italic" style={{ color: `hsl(${soft})` }}>
+                  {item.by || ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Page>
+
+        {/* PAGE 3 — OBITUARY (only if provided) */}
+        {program.obituary && (
+          <Page frame={theme.frame} paper={theme.paper}>
+            <h2 className="font-serif text-3xl italic md:text-4xl" style={{ color: `hsl(${accent})` }}>
+              Obituary
+            </h2>
+            <div
+              className="mt-5 max-h-full overflow-hidden whitespace-pre-line text-center text-sm leading-relaxed md:text-base"
+              style={{ color: `hsl(${ink})` }}
+            >
+              {program.obituary}
+            </div>
+          </Page>
+        )}
+
+        {/* PAGE 4 — VOTE OF THANKS */}
+        {program.voteOfThanks && (
+          <Page frame={theme.frame} paper={theme.paper}>
+            <h2 className="font-serif text-3xl italic md:text-4xl" style={{ color: `hsl(${accent})` }}>
+              Vote Of Thanks
+            </h2>
+            <p
+              className="mt-6 max-w-md whitespace-pre-line text-center text-sm leading-relaxed md:text-base"
+              style={{ color: `hsl(${soft})` }}
+            >
+              {program.voteOfThanks}
+            </p>
+          </Page>
+        )}
+
+        {/* Gallery (extra, no frame to avoid clutter) */}
+        {program.gallery.length > 0 && (
+          <div className="mx-auto max-w-2xl rounded-2xl bg-card p-6 shadow-paper md:p-10">
+            <h2 className="text-center text-xs uppercase tracking-[0.3em] text-gold">Cherished moments</h2>
+            <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3">
+              {program.gallery.map((src, i) => (
+                <div key={i} className="aspect-square overflow-hidden rounded-lg shadow-soft">
+                  <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <p className="text-center text-xs text-whisper print:hidden">
+          {year(program.dob)} — {year(program.dop)} · Created with{" "}
+          <Link to="/" className="text-gold hover:underline">Eventify</Link>
         </p>
       </article>
     </div>
