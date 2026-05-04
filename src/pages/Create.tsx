@@ -28,12 +28,12 @@ const Create = () => {
   const [profilePhoto, setProfilePhoto] = useState<string>("");
   const [gallery, setGallery] = useState<string[]>([]);
   const [order, setOrder] = useState<OrderItem[]>([
-    { id: crypto.randomUUID(), title: "Opening & Welcome", by: "" },
-    { id: crypto.randomUUID(), title: "Hymn", by: "" },
-    { id: crypto.randomUUID(), title: "Opening Prayer", by: "" },
-    { id: crypto.randomUUID(), title: "Tributes", by: "" },
-    { id: crypto.randomUUID(), title: "Sermon", by: "" },
-    { id: crypto.randomUUID(), title: "Vote of Thanks", by: "" },
+    { id: crypto.randomUUID(), time: "10:00", title: "Opening & Welcome", by: "" },
+    { id: crypto.randomUUID(), time: "10:10", title: "Hymn", by: "" },
+    { id: crypto.randomUUID(), time: "10:20", title: "Opening Prayer", by: "" },
+    { id: crypto.randomUUID(), time: "10:30", title: "Tributes", by: "" },
+    { id: crypto.randomUUID(), time: "11:00", title: "Sermon", by: "" },
+    { id: crypto.randomUUID(), time: "11:30", title: "Vote of Thanks", by: "" },
   ]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -274,7 +274,9 @@ const Create = () => {
               {order.map((item, idx) => (
                 <div key={item.id} className="flex items-start gap-3 rounded-lg border border-border bg-ivory p-3">
                   <span className="mt-2 w-6 text-center font-serif text-gold">{idx + 1}</span>
-                  <div className="flex-1 grid gap-2 md:grid-cols-[2fr_1fr]">
+                  <div className="flex-1 grid gap-2 md:grid-cols-[100px_2fr_1fr]">
+                    <Input type="time" value={item.time || ""} onChange={(e) => updateOrder(item.id, { time: e.target.value })}
+                      aria-label="Time" />
                     <Input value={item.title} onChange={(e) => updateOrder(item.id, { title: e.target.value })}
                       placeholder="e.g. Opening & Welcome" maxLength={120} />
                     <Input value={item.by || ""} onChange={(e) => updateOrder(item.id, { by: e.target.value })}
