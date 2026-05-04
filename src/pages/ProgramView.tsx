@@ -172,14 +172,16 @@ const ProgramView = () => {
             Order Of Service
           </h2>
 
-          <ul className="mt-6 w-full max-w-sm space-y-2.5 text-left">
+          <ul className="mt-6 w-full max-w-md space-y-2.5 text-left">
             {program.order.map((item) => (
-              <li key={item.id} className="grid grid-cols-[1fr_auto_1fr] items-baseline gap-3 text-sm md:text-base">
+              <li key={item.id} className="grid grid-cols-[60px_1fr_auto] items-baseline gap-3 text-sm md:text-base">
+                <span className="font-mono text-xs tracking-wide" style={{ color: `hsl(${accent})` }}>
+                  {item.time || ""}
+                </span>
                 <span className="font-medium uppercase tracking-wide" style={{ color: `hsl(${ink})` }}>
                   {item.title}
                 </span>
-                <span style={{ color: `hsl(${soft})` }}>:</span>
-                <span className="italic" style={{ color: `hsl(${soft})` }}>
+                <span className="italic text-right" style={{ color: `hsl(${soft})` }}>
                   {item.by || ""}
                 </span>
               </li>
