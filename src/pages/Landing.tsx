@@ -18,9 +18,6 @@ const Landing = () => {
         {/* Nav */}
         <header className="container flex items-center justify-between py-6">
           <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-gold shadow-soft">
-              <Heart className="h-4 w-4 text-primary-foreground" fill="currentColor" />
-            </div>
             <span className="font-serif text-2xl tracking-wide text-ink">Eventify</span>
           </Link>
           <div className="flex items-center gap-2">
@@ -66,10 +63,6 @@ const Landing = () => {
             <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-gold/20 bg-card/70 px-5 py-4 text-sm shadow-soft backdrop-blur">
               <span className="font-serif text-2xl text-ink">R35</span>
               <span className="text-whisper">minimum payment to publish &amp; share</span>
-              <span className="hidden h-4 w-px bg-border md:inline-block" />
-              <span className="inline-flex items-center gap-1.5 text-whisper">
-                <Check className="h-4 w-4 text-gold" /> Demo pricing
-              </span>
             </div>
           </div>
 
@@ -174,7 +167,7 @@ const Landing = () => {
                 <p className="mt-3 font-serif text-6xl text-ink">
                   R35<span className="text-2xl text-whisper">.00</span>
                 </p>
-                <p className="mt-1 text-sm text-whisper">per published program · demo pricing</p>
+                <p className="mt-1 text-sm text-whisper">per published program</p>
                 <Link to="/create" className="mt-6 inline-block w-full">
                   <Button size="lg" className="w-full bg-ink text-primary-foreground hover:bg-ink/90">
                     Begin a program
