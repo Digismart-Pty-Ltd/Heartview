@@ -1,5 +1,6 @@
 export interface OrderItem {
   id: string;
+  time?: string; // e.g. "10:00"
   title: string;
   by?: string;
 }
