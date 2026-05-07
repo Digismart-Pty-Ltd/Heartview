@@ -123,31 +123,19 @@ const Create = () => {
                     active ? "border-gold shadow-elegant" : "border-border hover:border-gold/50"
                   }`}
                 >
-                  <div className="relative aspect-[3/4] bg-white">
-                    <img
-                      src={t.frame}
-                      alt=""
-                      loading="lazy"
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
-                      <p
-                        className="text-[10px] uppercase tracking-[0.3em]"
-                        style={{ color: `hsl(${t.accent})` }}
-                      >
+                  <div className="p-4">
+                    <Page frame={t.frame} paper={t.paper} accent={t.accent}>
+                      <p className="font-serif text-xs italic" style={{ color: `hsl(${t.accent})` }}>
                         In loving memory of
                       </p>
-                      <p
-                        className="mt-3 font-serif text-2xl italic"
-                        style={{ color: `hsl(${t.accent})` }}
-                      >
+                      <p className="mt-3 font-serif text-lg italic" style={{ color: `hsl(${t.accent})` }}>
                         Their Name
                       </p>
-                      <div className="my-3 h-px w-12" style={{ background: `hsl(${t.accent} / 0.5)` }} />
-                      <p className="font-serif text-xs italic" style={{ color: `hsl(${t.soft})` }}>
+                      <div className="my-2 h-px w-10" style={{ background: `hsl(${t.accent} / 0.5)` }} />
+                      <p className="font-serif text-[10px] italic" style={{ color: `hsl(${t.soft})` }}>
                         1952 — 2025
                       </p>
-                    </div>
+                    </Page>
                   </div>
                   <div className="border-t border-border p-5">
                     <div className="flex items-center justify-between">
