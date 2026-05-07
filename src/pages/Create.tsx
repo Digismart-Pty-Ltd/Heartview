@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, Upload, X, Check } from "lucide-react";
 import { fileToDataUrl, saveProgram, shortId, type OrderItem, type Program } from "@/lib/program";
 import { THEMES, type ThemeId, getTheme } from "@/lib/themes";
+import { Page } from "./ProgramView";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
