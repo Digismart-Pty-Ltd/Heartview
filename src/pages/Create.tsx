@@ -111,7 +111,7 @@ const Create = () => {
             </p>
           </div>
 
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
+          <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {THEMES.map((t) => {
               const active = t.id === themeId;
               return (
@@ -123,16 +123,18 @@ const Create = () => {
                     active ? "border-gold shadow-elegant" : "border-border hover:border-gold/50"
                   }`}
                 >
-                  <div className="p-4">
+                  <div className="p-3">
                     <Page frame={t.frame} paper={t.paper} accent={t.accent}>
-                      <p className="font-serif text-xs italic" style={{ color: `hsl(${t.accent})` }}>
+                      <p className="font-serif text-base italic md:text-lg" style={{ color: `hsl(${t.accent})` }}>
                         In loving memory of
                       </p>
-                      <p className="mt-3 font-serif text-lg italic" style={{ color: `hsl(${t.accent})` }}>
-                        Their Name
+                      <p className="mt-4 font-serif text-2xl uppercase tracking-wide md:text-3xl" style={{ color: `hsl(${t.ink})` }}>
+                        DOE
                       </p>
-                      <div className="my-2 h-px w-10" style={{ background: `hsl(${t.accent} / 0.5)` }} />
-                      <p className="font-serif text-[10px] italic" style={{ color: `hsl(${t.soft})` }}>
+                      <p className="mt-1 font-serif text-lg italic md:text-xl" style={{ color: `hsl(${t.accent})` }}>
+                        John
+                      </p>
+                      <p className="mt-3 font-serif text-xs italic md:text-sm" style={{ color: `hsl(${t.soft})` }}>
                         1952 — 2025
                       </p>
                     </Page>
