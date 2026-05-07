@@ -14,7 +14,7 @@ const MAX_BYTES = 5 * 1024 * 1024;
 const Create = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<"theme" | "form">("theme");
-  const [themeId, setThemeId] = useState<ThemeId>("roses");
+  const [themeId, setThemeId] = useState<ThemeId>("white");
 
   const [name, setName] = useState("");
   const [subtitle, setSubtitle] = useState("");
