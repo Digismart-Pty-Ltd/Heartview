@@ -7,7 +7,7 @@ import { getTheme } from "@/lib/themes";
 import { toast } from "sonner";
 
 /** A single framed "page" of the program. */
-const Page = ({ frame, paper, children }: { frame: string; paper: string; children: React.ReactNode }) => (
+const Page = ({ frame, paper, accent, children }: { frame: string; paper: string; accent: string; children: React.ReactNode }) => (
   <div
     className="relative mx-auto w-full overflow-hidden rounded-md shadow-paper print:shadow-none"
     style={{
@@ -16,15 +16,31 @@ const Page = ({ frame, paper, children }: { frame: string; paper: string; childr
       background: `hsl(${paper})`,
     }}
   >
-    {/* Frame overlay */}
+    {/* Gold double border */}
+    <div
+      className="pointer-events-none absolute inset-3 rounded-sm"
+      style={{ border: `1px solid hsl(${accent} / 0.55)` }}
+    />
+    <div
+      className="pointer-events-none absolute inset-4 rounded-sm"
+      style={{ border: `1px solid hsl(${accent} / 0.25)` }}
+    />
+    {/* Top-left rose corner */}
     <img
       src={frame}
       alt=""
       aria-hidden
-      className="pointer-events-none absolute inset-0 h-full w-full select-none"
+      className="pointer-events-none absolute left-0 top-0 h-[38%] w-[38%] select-none object-contain"
     />
-    {/* Inner content area, inset from the gold border */}
-    <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-[12%] py-[14%] text-center">
+    {/* Bottom-right rose corner (rotated) */}
+    <img
+      src={frame}
+      alt=""
+      aria-hidden
+      className="pointer-events-none absolute bottom-0 right-0 h-[38%] w-[38%] rotate-180 select-none object-contain"
+    />
+    {/* Inner content */}
+    <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-[14%] py-[16%] text-center">
       {children}
     </div>
   </div>
@@ -121,7 +137,7 @@ const ProgramView = () => {
       {/* Pages */}
       <article className="container max-w-3xl space-y-10 pb-20 fade-in">
         {/* PAGE 1 — COVER */}
-        <Page frame={theme.frame} paper={theme.paper}>
+        <Page frame={theme.frame} paper={theme.paper} accent={accent}>
           <p className="font-serif text-xl italic md:text-2xl" style={{ color: `hsl(${accent})` }}>
             In loving memory of
           </p>
@@ -167,7 +183,7 @@ const ProgramView = () => {
         </Page>
 
         {/* PAGE 2 — ORDER OF SERVICE */}
-        <Page frame={theme.frame} paper={theme.paper}>
+        <Page frame={theme.frame} paper={theme.paper} accent={accent}>
           <h2 className="font-serif text-3xl italic md:text-4xl" style={{ color: `hsl(${accent})` }}>
             Order Of Service
           </h2>
@@ -191,7 +207,7 @@ const ProgramView = () => {
 
         {/* PAGE 3 — OBITUARY (only if provided) */}
         {program.obituary && (
-          <Page frame={theme.frame} paper={theme.paper}>
+          <Page frame={theme.frame} paper={theme.paper} accent={accent}>
             <h2 className="font-serif text-3xl italic md:text-4xl" style={{ color: `hsl(${accent})` }}>
               Obituary
             </h2>
@@ -206,7 +222,7 @@ const ProgramView = () => {
 
         {/* PAGE 4 — VOTE OF THANKS */}
         {program.voteOfThanks && (
-          <Page frame={theme.frame} paper={theme.paper}>
+          <Page frame={theme.frame} paper={theme.paper} accent={accent}>
             <h2 className="font-serif text-3xl italic md:text-4xl" style={{ color: `hsl(${accent})` }}>
               Vote Of Thanks
             </h2>
