@@ -137,7 +137,7 @@ const ProgramView = () => {
       {/* Pages */}
       <article className="container max-w-3xl space-y-10 pb-20 fade-in">
         {/* PAGE 1 — COVER */}
-        <Page frame={theme.frame} paper={theme.paper}>
+        <Page frame={theme.frame} paper={theme.paper} accent={accent}>
           <p className="font-serif text-xl italic md:text-2xl" style={{ color: `hsl(${accent})` }}>
             In loving memory of
           </p>
@@ -183,7 +183,7 @@ const ProgramView = () => {
         </Page>
 
         {/* PAGE 2 — ORDER OF SERVICE */}
-        <Page frame={theme.frame} paper={theme.paper}>
+        <Page frame={theme.frame} paper={theme.paper} accent={accent}>
           <h2 className="font-serif text-3xl italic md:text-4xl" style={{ color: `hsl(${accent})` }}>
             Order Of Service
           </h2>
@@ -207,7 +207,7 @@ const ProgramView = () => {
 
         {/* PAGE 3 — OBITUARY (only if provided) */}
         {program.obituary && (
-          <Page frame={theme.frame} paper={theme.paper}>
+          <Page frame={theme.frame} paper={theme.paper} accent={accent}>
             <h2 className="font-serif text-3xl italic md:text-4xl" style={{ color: `hsl(${accent})` }}>
               Obituary
             </h2>
@@ -222,7 +222,7 @@ const ProgramView = () => {
 
         {/* PAGE 4 — VOTE OF THANKS */}
         {program.voteOfThanks && (
-          <Page frame={theme.frame} paper={theme.paper}>
+          <Page frame={theme.frame} paper={theme.paper} accent={accent}>
             <h2 className="font-serif text-3xl italic md:text-4xl" style={{ color: `hsl(${accent})` }}>
               Vote Of Thanks
             </h2>
