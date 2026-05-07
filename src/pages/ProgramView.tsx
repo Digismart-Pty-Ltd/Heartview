@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Copy, Check, ArrowLeft, Printer } from "lucide-react";
 import { getProgram, formatDate, type Program } from "@/lib/program";
 import { getTheme } from "@/lib/themes";
+import crossDove from "@/assets/cross-dove.png";
 import { toast } from "sonner";
 
 /** A single framed "page" of the program. */
-const Page = ({ frame, paper, accent, children }: { frame: string; paper: string; accent: string; children: React.ReactNode }) => (
+export const Page = ({ frame, paper, accent, children }: { frame: string; paper: string; accent: string; children: React.ReactNode }) => (
   <div
     className="relative mx-auto w-full overflow-hidden rounded-md shadow-paper print:shadow-none"
     style={{
@@ -30,17 +31,24 @@ const Page = ({ frame, paper, accent, children }: { frame: string; paper: string
       src={frame}
       alt=""
       aria-hidden
-      className="pointer-events-none absolute left-0 top-0 h-[38%] w-[38%] select-none object-contain"
+      className="pointer-events-none absolute left-0 top-0 h-[30%] w-[30%] select-none object-contain"
+    />
+    {/* Top-right cross with dove */}
+    <img
+      src={crossDove}
+      alt=""
+      aria-hidden
+      className="pointer-events-none absolute right-[8%] top-[6%] h-[18%] w-auto select-none object-contain"
     />
     {/* Bottom-right rose corner (rotated) */}
     <img
       src={frame}
       alt=""
       aria-hidden
-      className="pointer-events-none absolute bottom-0 right-0 h-[38%] w-[38%] rotate-180 select-none object-contain"
+      className="pointer-events-none absolute bottom-0 right-0 h-[30%] w-[30%] rotate-180 select-none object-contain"
     />
     {/* Inner content */}
-    <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-[14%] py-[16%] text-center">
+    <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-[14%] py-[14%] text-center">
       {children}
     </div>
   </div>
