@@ -13,7 +13,7 @@ export const Page = ({ frame, paper, accent, children }: { frame: string; paper:
     className="relative mx-auto w-full overflow-hidden rounded-md shadow-paper print:shadow-none"
     style={{
       aspectRatio: "3 / 4",
-      maxWidth: "640px",
+      maxWidth: "880px",
       background: `hsl(${paper})`,
     }}
   >
@@ -31,21 +31,21 @@ export const Page = ({ frame, paper, accent, children }: { frame: string; paper:
       src={frame}
       alt=""
       aria-hidden
-      className="pointer-events-none absolute left-0 top-0 h-[30%] w-[30%] select-none object-contain"
+      className="pointer-events-none absolute left-0 top-0 h-[42%] w-[42%] select-none object-contain"
     />
     {/* Top-right cross with dove */}
     <img
       src={crossDove}
       alt=""
       aria-hidden
-      className="pointer-events-none absolute right-[8%] top-[6%] h-[18%] w-auto select-none object-contain"
+      className="pointer-events-none absolute right-[7%] top-[5%] h-[26%] w-auto select-none object-contain"
     />
     {/* Bottom-right rose corner (rotated) */}
     <img
       src={frame}
       alt=""
       aria-hidden
-      className="pointer-events-none absolute bottom-0 right-0 h-[30%] w-[30%] rotate-180 select-none object-contain"
+      className="pointer-events-none absolute bottom-0 right-0 h-[42%] w-[42%] rotate-180 select-none object-contain"
     />
     {/* Inner content */}
     <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-[14%] py-[14%] text-center">
@@ -143,7 +143,7 @@ const ProgramView = () => {
       </header>
 
       {/* Pages */}
-      <article className="container max-w-3xl space-y-10 pb-20 fade-in">
+      <article className="container max-w-5xl space-y-10 pb-20 fade-in">
         {/* PAGE 1 — COVER */}
         <Page frame={theme.frame} paper={theme.paper} accent={accent}>
           <p className="font-serif text-xl italic md:text-2xl" style={{ color: `hsl(${accent})` }}>
