@@ -7,7 +7,7 @@ import { getTheme } from "@/lib/themes";
 import { toast } from "sonner";
 
 /** A single framed "page" of the program. */
-const Page = ({ frame, paper, children }: { frame: string; paper: string; children: React.ReactNode }) => (
+const Page = ({ frame, paper, accent, children }: { frame: string; paper: string; accent: string; children: React.ReactNode }) => (
   <div
     className="relative mx-auto w-full overflow-hidden rounded-md shadow-paper print:shadow-none"
     style={{
@@ -16,15 +16,31 @@ const Page = ({ frame, paper, children }: { frame: string; paper: string; childr
       background: `hsl(${paper})`,
     }}
   >
-    {/* Frame overlay */}
+    {/* Gold double border */}
+    <div
+      className="pointer-events-none absolute inset-3 rounded-sm"
+      style={{ border: `1px solid hsl(${accent} / 0.55)` }}
+    />
+    <div
+      className="pointer-events-none absolute inset-4 rounded-sm"
+      style={{ border: `1px solid hsl(${accent} / 0.25)` }}
+    />
+    {/* Top-left rose corner */}
     <img
       src={frame}
       alt=""
       aria-hidden
-      className="pointer-events-none absolute inset-0 h-full w-full select-none"
+      className="pointer-events-none absolute left-0 top-0 h-[38%] w-[38%] select-none object-contain"
     />
-    {/* Inner content area, inset from the gold border */}
-    <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-[12%] py-[14%] text-center">
+    {/* Bottom-right rose corner (rotated) */}
+    <img
+      src={frame}
+      alt=""
+      aria-hidden
+      className="pointer-events-none absolute bottom-0 right-0 h-[38%] w-[38%] rotate-180 select-none object-contain"
+    />
+    {/* Inner content */}
+    <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-[14%] py-[16%] text-center">
       {children}
     </div>
   </div>
