@@ -180,7 +180,7 @@ const Landing = () => {
       {/* TRUST MARQUEE */}
       <section className="border-y border-forest/10 bg-cream-deep/40">
         <div className="container flex flex-wrap items-center justify-center gap-x-6 gap-y-3 py-5 text-sm text-forest/60 sm:gap-x-10 sm:py-6">
-          {["Funerals", "Memorials", "Celebrations of life", "Weddings", "Gatherings"].map((w, i, arr) => (
+          {["Funerals", "Memorials", "Celebrations of life", "Memorial services", "Gatherings"].map((w, i, arr) => (
             <span key={w} className="flex items-center gap-4 sm:gap-10">
               <span className="display-serif italic">{w}</span>
               {i < arr.length - 1 && <span className="h-1 w-1 rounded-full bg-forest/30" />}
