@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Inter:wght@300;400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -43,14 +43,23 @@
     /* Custom tokens */
     --ivory: 40 38% 97%;
     --cream: 38 45% 94%;
+    --cream-deep: 38 30% 88%;
     --gold: 36 42% 52%;
     --gold-soft: 38 55% 78%;
     --ink: 25 25% 18%;
     --whisper: 28 12% 52%;
 
+    /* Editorial palette */
+    --forest: 160 28% 18%;
+    --forest-deep: 160 32% 10%;
+    --sage: 100 12% 55%;
+    --terracotta: 18 45% 52%;
+
     --gradient-warm: linear-gradient(180deg, hsl(40 45% 98%) 0%, hsl(38 40% 94%) 100%);
     --gradient-gold: linear-gradient(135deg, hsl(36 42% 52%) 0%, hsl(38 55% 68%) 100%);
     --gradient-overlay: linear-gradient(180deg, hsl(40 38% 97% / 0) 0%, hsl(40 38% 97% / 0.85) 100%);
+    --gradient-hero: radial-gradient(ellipse at top, hsl(38 45% 96%) 0%, hsl(38 30% 88%) 100%);
+    --gradient-forest: linear-gradient(180deg, hsl(160 28% 18%) 0%, hsl(160 32% 10%) 100%);
 
     --shadow-soft: 0 4px 24px -8px hsl(25 25% 18% / 0.08);
     --shadow-elegant: 0 20px 60px -20px hsl(36 42% 30% / 0.18);
@@ -88,9 +97,30 @@
   }
 }
 
+@layer components {
+  .display-serif {
+    font-family: 'Fraunces', serif;
+    font-optical-sizing: auto;
+    font-variation-settings: "opsz" 144, "SOFT" 50;
+    letter-spacing: -0.02em;
+  }
+  .eyebrow {
+    @apply text-xs uppercase tracking-[0.25em] font-medium;
+    color: hsl(var(--muted-foreground));
+  }
+  .rule {
+    @apply h-px w-12;
+    background: hsl(var(--foreground) / 0.3);
+  }
+}
+
 @layer utilities {
   .font-serif {
     font-family: 'Cormorant Garamond', serif;
+  }
+  .font-display {
+    font-family: 'Fraunces', serif;
+    font-optical-sizing: auto;
   }
   .text-balance {
     text-wrap: balance;
@@ -113,8 +143,18 @@
   .fade-in {
     animation: fadeIn 0.8s ease-out;
   }
+  .animate-fade-up {
+    animation: fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .transition-soft {
+    transition: var(--transition-soft);
   }
 }
