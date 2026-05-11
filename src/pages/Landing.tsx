@@ -1,191 +1,341 @@
 import heroImage from "@/assets/hero-lilies.jpg";
 import oliveBranch from "@/assets/olive-branch.png";
+import frameWhite from "@/assets/frame-roses-white.png";
+import crossDove from "@/assets/cross-dove.png";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Heart, Share2, Sparkles, Check, QrCode, Smartphone, Mail } from "lucide-react";
+import {
+  Heart,
+  Share2,
+  Sparkles,
+  Check,
+  QrCode,
+  Smartphone,
+  ArrowUpRight,
+} from "lucide-react";
 
 const Landing = () => {
   return (
-    <div className="min-h-screen bg-gradient-warm">
-      {/* Decorative background ornaments */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -left-32 top-20 h-96 w-96 rounded-full bg-gold/10 blur-3xl" />
-        <div className="absolute -right-40 top-1/3 h-[500px] w-[500px] rounded-full bg-primary-glow/10 blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-cream/40 blur-3xl" />
-      </div>
-
-      <div className="relative">
-        {/* Nav */}
-        <header className="container flex items-center justify-between py-6">
+    <div className="min-h-screen bg-cream text-forest">
+      {/* NAV */}
+      <header className="border-b border-forest/10">
+        <nav className="container flex items-center justify-between py-6">
           <Link to="/" className="flex items-center gap-3">
-            <span className="font-serif text-2xl tracking-wide text-ink">Eventify</span>
+            <span className="display-serif text-2xl tracking-tight">Eventify</span>
           </Link>
-          <div className="flex items-center gap-2">
-            <a href="#pricing" className="hidden text-sm text-whisper hover:text-ink md:inline-block">
-              Pricing
-            </a>
-            <Link to="/create">
-              <Button className="bg-ink text-primary-foreground hover:bg-ink/90">Create program</Button>
-            </Link>
+          <div className="hidden items-center gap-8 text-sm text-forest/70 md:flex">
+            <a href="#how" className="hover:text-forest">How it works</a>
+            <a href="#preview" className="hover:text-forest">Preview</a>
+            <a href="#pricing" className="hover:text-forest">Pricing</a>
+            <a href="#voices" className="hover:text-forest">Voices</a>
           </div>
-        </header>
+          <Link to="/create">
+            <Button className="bg-forest text-cream hover:bg-forest-deep">
+              Get started <ArrowUpRight className="ml-1 h-4 w-4" />
+            </Button>
+          </Link>
+        </nav>
+      </header>
 
-        {/* Hero */}
-        <section className="container grid gap-10 py-10 lg:grid-cols-12 lg:items-center lg:gap-16 lg:py-16">
-          <div className="fade-in space-y-7 lg:col-span-7">
-            <div className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-card/60 px-4 py-1.5 text-xs uppercase tracking-[0.25em] text-gold backdrop-blur">
-              <span className="h-1.5 w-1.5 rounded-full bg-gold" />
-              A digital tribute
+      {/* HERO */}
+      <section className="relative overflow-hidden bg-gradient-hero">
+        <div className="container grid gap-12 py-20 lg:grid-cols-12 lg:items-center lg:gap-16 lg:py-28">
+          <div className="animate-fade-up space-y-8 lg:col-span-7">
+            <div className="flex items-center gap-3">
+              <span className="rule" />
+              <p className="eyebrow">Digital event programs · Est. 2026</p>
             </div>
-            <h1 className="font-serif text-5xl leading-[1.05] text-ink text-balance md:text-6xl lg:text-7xl">
-              Honour a life,<br />
-              beautifully <em className="text-gold">remembered</em>.
+
+            <h1 className="display-serif text-5xl leading-[0.95] text-forest md:text-7xl lg:text-[5.5rem]">
+              Honour every<br />
+              <em className="italic text-terracotta">moment</em> with<br />
+              grace.
             </h1>
-            <p className="max-w-xl text-lg leading-relaxed text-whisper">
-              Eventify lets you create a heartfelt digital funeral program in minutes —
-              then share it with family and friends through a single, gentle link.
+
+            <p className="max-w-xl text-lg leading-relaxed text-forest/70">
+              Beautiful digital programs for funerals, memorials, and gatherings
+              that matter. Crafted in minutes. Shared in seconds. Remembered always.
             </p>
 
-            <div className="flex flex-wrap items-center gap-4 pt-2">
+            <div className="flex flex-wrap items-center gap-4">
               <Link to="/create">
-                <Button size="lg" className="bg-gradient-gold text-primary-foreground shadow-elegant hover:opacity-90">
-                  Create a program
+                <Button size="lg" className="bg-forest text-cream hover:bg-forest-deep">
+                  Create your program <ArrowUpRight className="ml-1 h-4 w-4" />
                 </Button>
               </Link>
-              <a href="#how">
-                <Button size="lg" variant="outline" className="border-gold/40 text-ink hover:bg-cream">
-                  How it works
+              <a href="#preview">
+                <Button size="lg" variant="outline" className="border-forest/30 text-forest hover:bg-forest/5">
+                  See an example
                 </Button>
               </a>
             </div>
 
-            {/* Pricing strip */}
-            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-gold/20 bg-card/70 px-5 py-4 text-sm shadow-soft backdrop-blur">
-              <span className="font-serif text-2xl text-ink">R35</span>
-              <span className="text-whisper">minimum payment to publish &amp; share</span>
+            <div className="flex items-stretch gap-6 pt-6">
+              {[
+                { v: "R35", l: "one-time" },
+                { v: "2 min", l: "to create" },
+                { v: "∞", l: "shares" },
+              ].map((s, i) => (
+                <div key={i} className="flex items-center gap-6">
+                  {i > 0 && <span className="h-10 w-px bg-forest/15" />}
+                  <div>
+                    <p className="display-serif text-3xl text-forest">{s.v}</p>
+                    <p className="eyebrow mt-1">{s.l}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
           <div className="relative lg:col-span-5">
-            <div className="absolute -left-6 -top-6 hidden h-24 w-24 rounded-full border border-gold/30 lg:block" />
-            <div className="absolute -bottom-6 -right-6 hidden h-32 w-32 rounded-full border border-gold/20 lg:block" />
-            <div className="overflow-hidden rounded-[2rem] border border-gold/20 shadow-elegant">
+            <div className="relative overflow-hidden rounded-sm shadow-elegant">
               <img
                 src={heroImage}
-                alt="White lilies and eucalyptus on an ivory background"
-                width={1600}
-                height={1024}
-                className="h-full w-full object-cover"
+                alt="White lilies and eucalyptus"
+                className="h-[560px] w-full object-cover"
               />
+              <div className="absolute inset-0 bg-gradient-to-t from-forest/30 via-transparent to-transparent" />
             </div>
-            {/* Floating quote card */}
-            <div className="absolute -bottom-8 left-4 hidden max-w-[260px] rounded-2xl border border-gold/20 bg-card/95 p-5 shadow-paper backdrop-blur md:block">
-              <p className="text-xs uppercase tracking-[0.25em] text-gold">In loving memory</p>
-              <p className="mt-2 font-serif text-base italic leading-relaxed text-ink">
-                "Those we love don't go away — they walk beside us every day."
+
+            <div className="absolute -bottom-6 -left-6 max-w-[260px] bg-cream p-6 shadow-elegant">
+              <div className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-terracotta" />
+                <p className="eyebrow">In loving memory</p>
+              </div>
+              <p className="mt-3 display-serif text-lg italic leading-snug text-forest">
+                "A life beautifully remembered."
               </p>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Trust bar */}
-        <section className="container py-10">
-          <div className="grid grid-cols-2 gap-6 rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur md:grid-cols-4">
-            {[
-              { icon: Smartphone, label: "Mobile-friendly" },
-              { icon: Share2, label: "One-link sharing" },
-              { icon: QrCode, label: "QR-ready" },
-              { icon: Mail, label: "No accounts" },
-            ].map((t, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cream text-gold">
-                  <t.icon className="h-4 w-4" />
-                </div>
-                <span className="text-sm text-ink">{t.label}</span>
-              </div>
-            ))}
-          </div>
-        </section>
+      {/* TRUST MARQUEE */}
+      <section className="border-y border-forest/10 bg-cream-deep/40">
+        <div className="container flex flex-wrap items-center justify-center gap-x-10 gap-y-3 py-6 text-sm text-forest/60">
+          {["Funerals", "Memorials", "Celebrations of life", "Weddings", "Gatherings"].map((w, i, arr) => (
+            <span key={w} className="flex items-center gap-10">
+              <span className="display-serif italic">{w}</span>
+              {i < arr.length - 1 && <span className="h-1 w-1 rounded-full bg-forest/30" />}
+            </span>
+          ))}
+        </div>
+      </section>
 
-        {/* How it works */}
-        <section id="how" className="container py-20">
-          <div className="mx-auto mb-14 max-w-2xl text-center">
-            <div className="divider-ornament mb-6">
-              <img src={oliveBranch} alt="" width={48} height={32} className="h-8 w-auto opacity-80" />
+      {/* HOW IT WORKS */}
+      <section id="how" className="container py-24">
+        <div className="grid gap-10 lg:grid-cols-12">
+          <div className="lg:col-span-5">
+            <div className="flex items-center gap-3">
+              <span className="rule" />
+              <p className="eyebrow">The process</p>
             </div>
-            <h2 className="font-serif text-4xl text-ink md:text-5xl">A gentle, simple journey</h2>
-            <p className="mt-4 text-whisper">Three steps. No accounts. No printing.</p>
+            <h2 className="mt-6 display-serif text-4xl leading-tight text-forest md:text-5xl">
+              Three quiet steps,<br />
+              <em className="italic text-terracotta">one</em> lasting tribute.
+            </h2>
+          </div>
+          <div className="lg:col-span-6 lg:col-start-7">
+            <p className="text-lg leading-relaxed text-forest/70">
+              We've removed every friction so you can focus on what matters —
+              the people, the memories, the moment.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-16 grid gap-px bg-forest/10 md:grid-cols-3">
+          {[
+            { n: "01", t: "Compose", d: "Add names, dates, and the story you wish to tell. Our editor guides you with care.", icon: Sparkles },
+            { n: "02", t: "Curate", d: "Layer in photographs, readings, hymns, and the order of service. Make it unmistakably theirs.", icon: Check },
+            { n: "03", t: "Share", d: "A private link or printed QR code. Family and friends arrive with a tap.", icon: Share2 },
+          ].map((s) => (
+            <div key={s.n} className="group bg-cream p-10 transition-colors hover:bg-cream-deep/30">
+              <div className="flex items-center justify-between">
+                <span className="display-serif text-5xl text-terracotta/50">{s.n}</span>
+                <s.icon className="h-5 w-5 text-forest/40" />
+              </div>
+              <h3 className="mt-10 display-serif text-2xl text-forest">{s.t}</h3>
+              <p className="mt-3 text-sm leading-relaxed text-forest/70">{s.d}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* PREVIEW */}
+      <section id="preview" className="bg-forest text-cream">
+        <div className="container grid gap-16 py-24 lg:grid-cols-12 lg:items-center">
+          <div className="lg:col-span-6">
+            <div className="flex items-center gap-3">
+              <span className="h-px w-12 bg-cream/30" />
+              <p className="eyebrow text-cream/60">A glimpse</p>
+            </div>
+            <h2 className="mt-6 display-serif text-4xl leading-tight md:text-6xl">
+              Mobile-first.<br />
+              <em className="italic text-gold">Beautifully</em> so.
+            </h2>
+            <p className="mt-6 max-w-md text-lg leading-relaxed text-cream/70">
+              Designed to feel like a fine printed program — but living in every
+              guest's pocket. Typography that breathes. Imagery that honours.
+            </p>
+
+            <ul className="mt-10 grid gap-4 sm:grid-cols-2">
+              {[
+                "Refined editorial typography",
+                "Photo galleries & video tributes",
+                "Order of service & readings",
+                "Guest book & condolence wall",
+              ].map((f) => (
+                <li key={f} className="flex items-start gap-3 text-sm text-cream/80">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-gold" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="lg:col-span-6">
+            <div className="relative mx-auto max-w-md">
+              {/* Editorial program mockup */}
+              <div className="relative aspect-[3/4] overflow-hidden rounded-sm bg-cream shadow-elegant">
+                <img src={frameWhite} alt="" aria-hidden className="pointer-events-none absolute -left-[2%] -top-[2%] h-[50%] w-[50%] object-contain" />
+                <img src={crossDove} alt="" aria-hidden className="pointer-events-none absolute right-[10%] top-[8%] h-[20%] w-auto object-contain" />
+                <img src={frameWhite} alt="" aria-hidden className="pointer-events-none absolute -bottom-[2%] -right-[2%] h-[50%] w-[50%] rotate-180 object-contain" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center px-[14%] text-center text-forest">
+                  <p className="display-serif italic text-terracotta">In loving memory of</p>
+                  <p className="mt-8 display-serif text-3xl uppercase tracking-wide">DOE</p>
+                  <p className="mt-1 display-serif text-xl italic text-terracotta">John</p>
+                  <p className="mt-6 text-xs italic text-forest/60">1952 — 2025</p>
+                </div>
+              </div>
+
+              <div className="absolute -bottom-8 -right-8 flex w-44 flex-col items-center gap-2 bg-cream p-5 text-center shadow-elegant">
+                <QrCode className="h-10 w-10 text-forest" />
+                <p className="eyebrow text-forest/60">Scan to view</p>
+                <p className="display-serif text-sm italic text-forest">Instant access</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* PRICING */}
+      <section id="pricing" className="container py-24">
+        <div className="mx-auto mb-16 max-w-2xl text-center">
+          <div className="divider-ornament">
+            <img src={oliveBranch} alt="" className="h-8 w-auto opacity-60" />
+          </div>
+          <p className="eyebrow mt-6">One price · No surprises</p>
+          <h2 className="mt-4 display-serif text-4xl text-forest md:text-5xl">
+            Simple, <em className="italic text-terracotta">honest</em> pricing.
+          </h2>
+        </div>
+
+        <div className="mx-auto grid max-w-4xl gap-px overflow-hidden rounded-sm border border-forest/15 bg-forest/10 md:grid-cols-2">
+          <div className="bg-cream p-12">
+            <p className="eyebrow">Eventify Program</p>
+            <p className="mt-6">
+              <span className="display-serif text-7xl text-forest">R35</span>
+              <span className="ml-2 text-sm text-forest/50">ZAR</span>
+            </p>
+            <p className="mt-4 text-sm text-forest/70">
+              One-time payment. No subscription. Yours forever.
+            </p>
+            <Link to="/create" className="mt-8 inline-block">
+              <Button size="lg" className="bg-forest text-cream hover:bg-forest-deep">
+                Begin your program <ArrowUpRight className="ml-1 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+          <div className="bg-cream p-12">
+            <ul className="space-y-4">
+              {[
+                "Full digital funeral program",
+                "Custom link & printable QR code",
+                "Mobile-perfect on every device",
+                "Unlimited photos & edits",
+                "Guest condolence wall",
+                "Lifetime access — no expiry",
+              ].map((f) => (
+                <li key={f} className="flex items-start gap-3 text-sm text-forest">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-terracotta" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* VOICES */}
+      <section id="voices" className="border-y border-forest/10 bg-cream-deep/30">
+        <div className="container py-24">
+          <div className="mx-auto mb-14 max-w-2xl text-center">
+            <div className="flex items-center justify-center gap-3">
+              <span className="rule" />
+              <p className="eyebrow">Words from families</p>
+              <span className="rule" />
+            </div>
+            <h2 className="mt-6 display-serif text-4xl text-forest md:text-5xl">
+              Carried with <em className="italic text-terracotta">care</em>.
+            </h2>
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">
             {[
-              { icon: Heart, title: "Share their story", text: "Add their name, dates, a portrait, and a tribute message that honours their life.", step: "01" },
-              { icon: Sparkles, title: "We craft the page", text: "Your details flow into a respectful, mobile-ready program — designed with care.", step: "02" },
-              { icon: Share2, title: "Share the link", text: "A unique link is yours instantly. Send it by message, email, or to a wider circle.", step: "03" },
-            ].map((s, i) => (
-              <div
-                key={i}
-                className="group relative overflow-hidden rounded-2xl border border-border bg-card p-8 shadow-soft transition-soft hover:-translate-y-1 hover:shadow-elegant"
-              >
-                <span className="absolute right-6 top-4 font-serif text-6xl text-gold/15 transition-soft group-hover:text-gold/25">
-                  {s.step}
-                </span>
-                <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-gold text-primary-foreground shadow-soft">
-                  <s.icon className="h-5 w-5" />
-                </div>
-                <h3 className="mb-2 font-serif text-2xl text-ink">{s.title}</h3>
-                <p className="text-whisper">{s.text}</p>
-              </div>
+              { q: "This made organising the funeral program effortless. Everyone could access it instantly — even family overseas.", a: "Sarah M.", r: "Cape Town" },
+              { q: "Affordable, dignified, and beautifully made. The QR code on the printed cards was perfect for sharing.", a: "Thabo K.", r: "Johannesburg" },
+              { q: "The design felt timeless — like something we'd keep on the shelf. Truly, highly recommend.", a: "Lerato P.", r: "Durban" },
+            ].map((t, i) => (
+              <figure key={i} className="bg-cream p-8 shadow-soft">
+                <span className="display-serif text-6xl leading-none text-terracotta/40">"</span>
+                <blockquote className="-mt-4 display-serif text-lg leading-snug italic text-forest">
+                  {t.q}
+                </blockquote>
+                <figcaption className="mt-6 flex items-center gap-3 border-t border-forest/10 pt-4">
+                  <Heart className="h-3 w-3 text-terracotta" />
+                  <span className="text-sm font-medium text-forest">{t.a}</span>
+                  <span className="text-xs text-forest/50">· {t.r}</span>
+                </figcaption>
+              </figure>
             ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Pricing */}
-        <section id="pricing" className="container pb-20">
-          <div className="mx-auto max-w-3xl overflow-hidden rounded-3xl border border-gold/30 bg-gradient-warm shadow-elegant">
-            <div className="grid items-center gap-8 p-10 md:grid-cols-[1.1fr_1fr] md:p-14">
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-gold">Simple, gentle pricing</p>
-                <h2 className="mt-3 font-serif text-4xl text-ink">One small fee. A lasting tribute.</h2>
-                <p className="mt-4 text-whisper">
-                  Create your program for free. A minimum payment of <span className="font-medium text-ink">R35</span> is
-                  required at publish to share your unique link with family and friends.
-                </p>
-                <ul className="mt-6 space-y-2 text-sm text-ink">
-                  {["Unlimited views", "Mobile-optimised page", "Shareable link & QR", "Lifetime access"].map((f) => (
-                    <li key={f} className="flex items-center gap-2">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-gold text-primary-foreground">
-                        <Check className="h-3 w-3" />
-                      </span>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="rounded-2xl border border-gold/30 bg-card/80 p-8 text-center shadow-paper backdrop-blur">
-                <p className="text-xs uppercase tracking-[0.3em] text-gold">Minimum</p>
-                <p className="mt-3 font-serif text-6xl text-ink">
-                  R35<span className="text-2xl text-whisper">.00</span>
-                </p>
-                <p className="mt-1 text-sm text-whisper">per published program</p>
-                <Link to="/create" className="mt-6 inline-block w-full">
-                  <Button size="lg" className="w-full bg-ink text-primary-foreground hover:bg-ink/90">
-                    Begin a program
-                  </Button>
-                </Link>
-                <p className="mt-3 text-xs text-whisper">Pay only when you're ready to share.</p>
-              </div>
-            </div>
+      {/* CTA */}
+      <section className="bg-forest-deep text-cream">
+        <div className="container py-24 text-center">
+          <div className="flex items-center justify-center gap-3">
+            <Smartphone className="h-4 w-4 text-gold" />
+            <p className="eyebrow text-cream/60">Begin today</p>
           </div>
-        </section>
+          <h2 className="mx-auto mt-6 max-w-3xl display-serif text-5xl leading-tight md:text-7xl">
+            No stress. <em className="italic text-gold">No printing.</em><br />
+            Just remembrance.
+          </h2>
+          <p className="mx-auto mt-6 max-w-xl text-lg text-cream/70">
+            Create something worthy of the moment — in the time it takes to make tea.
+          </p>
+          <Link to="/create" className="mt-10 inline-block">
+            <Button size="lg" className="bg-cream text-forest hover:bg-cream/90">
+              Create your program <ArrowUpRight className="ml-1 h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      </section>
 
-        <footer className="border-t border-border/60 bg-cream/40">
-          <div className="container flex flex-col items-center gap-2 py-8 text-sm text-whisper md:flex-row md:justify-between">
-            <p>© {new Date().getFullYear()} Eventify. Made with care.</p>
-            <p className="font-serif italic">In remembrance, always.</p>
+      {/* FOOTER */}
+      <footer className="border-t border-forest/10 bg-cream">
+        <div className="container flex flex-col items-center justify-between gap-4 py-8 text-sm text-forest/60 md:flex-row">
+          <span className="display-serif text-xl text-forest">Eventify</span>
+          <p>© 2026 Eventify. Made with care in South Africa.</p>
+          <div className="flex gap-6">
+            <a href="#" className="hover:text-forest">Privacy</a>
+            <a href="#" className="hover:text-forest">Terms</a>
+            <a href="#" className="hover:text-forest">Contact</a>
           </div>
-        </footer>
-      </div>
+        </div>
+      </footer>
     </div>
   );
 };

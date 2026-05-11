@@ -31,21 +31,21 @@ export const Page = ({ frame, paper, accent, children }: { frame: string; paper:
       src={frame}
       alt=""
       aria-hidden
-      className="pointer-events-none absolute left-0 top-0 h-[42%] w-[42%] select-none object-contain"
+      className="pointer-events-none absolute -left-[2%] -top-[2%] h-[50%] w-[50%] select-none object-contain"
     />
     {/* Top-right cross with dove */}
     <img
       src={crossDove}
       alt=""
       aria-hidden
-      className="pointer-events-none absolute right-[7%] top-[5%] h-[26%] w-auto select-none object-contain"
+      className="pointer-events-none absolute right-[10%] top-[8%] h-[20%] w-auto select-none object-contain"
     />
     {/* Bottom-right rose corner (rotated) */}
     <img
       src={frame}
       alt=""
       aria-hidden
-      className="pointer-events-none absolute bottom-0 right-0 h-[42%] w-[42%] rotate-180 select-none object-contain"
+      className="pointer-events-none absolute -bottom-[2%] -right-[2%] h-[50%] w-[50%] rotate-180 select-none object-contain"
     />
     {/* Inner content */}
     <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-[14%] py-[14%] text-center">

@@ -15,11 +15,17 @@ export default {
     extend: {
       fontFamily: {
         serif: ['"Cormorant Garamond"', 'serif'],
+        display: ['Fraunces', 'ui-serif', 'Georgia', 'serif'],
         sans: ['Inter', 'sans-serif'],
       },
       colors: {
         ivory: "hsl(var(--ivory))",
         cream: "hsl(var(--cream))",
+        "cream-deep": "hsl(var(--cream-deep))",
+        forest: "hsl(var(--forest))",
+        "forest-deep": "hsl(var(--forest-deep))",
+        sage: "hsl(var(--sage))",
+        terracotta: "hsl(var(--terracotta))",
         gold: {
           DEFAULT: "hsl(var(--gold))",
           soft: "hsl(var(--gold-soft))",
@@ -79,6 +85,8 @@ export default {
         'gradient-warm': 'var(--gradient-warm)',
         'gradient-gold': 'var(--gradient-gold)',
         'gradient-overlay': 'var(--gradient-overlay)',
+        'gradient-hero': 'var(--gradient-hero)',
+        'gradient-forest': 'var(--gradient-forest)',
       },
       boxShadow: {
         soft: 'var(--shadow-soft)',
