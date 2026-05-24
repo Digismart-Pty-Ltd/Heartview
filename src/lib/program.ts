@@ -19,26 +19,7 @@ export interface Program {
   order: OrderItem[];
   gallery: string[]; // data URLs
   createdAt: number;
-}
-
-const KEY = "eventify_programs";
-
-export function loadAll(): Record<string, Program> {
-  try {
-    return JSON.parse(localStorage.getItem(KEY) || "{}");
-  } catch {
-    return {};
-  }
-}
-
-export function saveProgram(p: Program) {
-  const all = loadAll();
-  all[p.id] = p;
-  localStorage.setItem(KEY, JSON.stringify(all));
-}
-
-export function getProgram(id: string): Program | null {
-  return loadAll()[id] || null;
+  deviceId?: string; // stable device UUID for "Previously" lookup
 }
 
 export function shortId(): string {

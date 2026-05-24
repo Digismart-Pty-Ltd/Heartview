@@ -22,7 +22,6 @@ const NAV = [
   { label: "How it works", href: "#how" },
   { label: "Preview", href: "#preview" },
   { label: "Pricing", href: "#pricing" },
-  { label: "Voices", href: "#voices" },
 ];
 
 const Landing = () => {
@@ -63,7 +62,7 @@ const Landing = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link to="/create" className="hidden sm:inline-flex">
+            <Link to="/auth" className="hidden sm:inline-flex">
               <Button size="sm" className="rounded-full bg-forest text-cream hover:bg-forest-deep">
                 Get started <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
               </Button>
@@ -95,7 +94,7 @@ const Landing = () => {
                 {n.label}
               </a>
             ))}
-            <Link to="/create" onClick={() => setOpen(false)} className="mt-2">
+            <Link to="/auth" onClick={() => setOpen(false)} className="mt-2">
               <Button className="w-full rounded-full bg-forest text-cream hover:bg-forest-deep">
                 Get started <ArrowUpRight className="ml-1 h-4 w-4" />
               </Button>
@@ -125,7 +124,7 @@ const Landing = () => {
             </p>
 
             <div className="animate-fade-up-delay-3 flex flex-wrap items-center gap-3 sm:gap-4">
-              <Link to="/create">
+              <Link to="/auth">
                 <Button size="lg" className="rounded-full bg-forest text-cream shadow-elegant transition-transform hover:-translate-y-0.5 hover:bg-forest-deep">
                   Create your program <ArrowUpRight className="ml-1 h-4 w-4" />
                 </Button>
@@ -306,7 +305,7 @@ const Landing = () => {
             <p className="mt-4 text-sm text-forest/70">
               One-time payment. No subscription. Yours forever.
             </p>
-            <Link to="/create" className="mt-8 inline-block">
+            <Link to="/auth" className="mt-8 inline-block">
               <Button size="lg" className="rounded-full bg-forest text-cream transition-transform hover:-translate-y-0.5 hover:bg-forest-deep">
                 Begin your program <ArrowUpRight className="ml-1 h-4 w-4" />
               </Button>
@@ -332,42 +331,6 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* VOICES */}
-      <section id="voices" className="border-y border-forest/10 bg-cream-deep/30">
-        <div className="container py-16 sm:py-24">
-          <div className="reveal mx-auto mb-12 max-w-2xl text-center sm:mb-14">
-            <div className="flex items-center justify-center gap-3">
-              <span className="rule" />
-              <p className="eyebrow">Words from families</p>
-              <span className="rule" />
-            </div>
-            <h2 className="mt-6 display-serif text-3xl text-forest sm:text-4xl md:text-5xl">
-              Carried with <em className="italic text-terracotta">care</em>.
-            </h2>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            {[
-              { q: "This made organising the funeral program effortless. Everyone could access it instantly — even family overseas.", a: "Sarah M.", r: "Cape Town" },
-              { q: "Affordable, dignified, and beautifully made. The QR code on the printed cards was perfect for sharing.", a: "Thabo K.", r: "Johannesburg" },
-              { q: "The design felt timeless — like something we'd keep on the shelf. Truly, highly recommend.", a: "Lerato P.", r: "Durban" },
-            ].map((t, i) => (
-              <figure key={i} className="reveal hover-lift bg-cream p-8 shadow-soft">
-                <span className="display-serif text-6xl leading-none text-terracotta/40">"</span>
-                <blockquote className="-mt-4 display-serif text-lg leading-snug italic text-forest">
-                  {t.q}
-                </blockquote>
-                <figcaption className="mt-6 flex items-center gap-3 border-t border-forest/10 pt-4">
-                  <Heart className="h-3 w-3 text-terracotta" />
-                  <span className="text-sm font-medium text-forest">{t.a}</span>
-                  <span className="text-xs text-forest/50">· {t.r}</span>
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* CTA */}
       <section className="bg-forest-deep text-cream">
         <div className="container py-16 text-center sm:py-24">
@@ -382,7 +345,7 @@ const Landing = () => {
           <p className="reveal mx-auto mt-6 max-w-xl text-base text-cream/70 sm:text-lg">
             Create something worthy of the moment — in the time it takes to make tea.
           </p>
-          <Link to="/create" className="reveal mt-8 inline-block sm:mt-10">
+          <Link to="/auth" className="reveal mt-8 inline-block sm:mt-10">
             <Button size="lg" className="rounded-full bg-cream text-forest transition-transform hover:-translate-y-0.5 hover:bg-cream/90">
               Create your program <ArrowUpRight className="ml-1 h-4 w-4" />
             </Button>
@@ -395,11 +358,19 @@ const Landing = () => {
         <div className="container flex flex-col items-center justify-between gap-4 py-8 text-sm text-forest/60 md:flex-row">
           <span className="display-serif text-xl text-forest">Eventify</span>
           <p className="text-center">© 2026 Eventify. Made with care in South Africa.</p>
-          <div className="flex gap-6">
-            <a href="#" className="hover:text-forest">Privacy</a>
-            <a href="#" className="hover:text-forest">Terms</a>
-            <a href="#" className="hover:text-forest">Contact</a>
-          </div>
+  <div className="flex gap-6">
+  <Link to="/terms" className="hover:text-forest">
+    Privacy
+  </Link>
+
+  <Link to="/terms" className="hover:text-forest">
+    Terms
+  </Link>
+
+  <Link to="/contact" className="hover:text-forest">
+    Contact
+  </Link>
+</div>
         </div>
       </footer>
     </div>
