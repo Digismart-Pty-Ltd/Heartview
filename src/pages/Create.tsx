@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { fileToDataUrl, shortId, type OrderItem, type Program, formatDate } from "@/lib/program";
 import { THEMES, type ThemeId, getTheme } from "@/lib/themes";
-import { Page, OrderList, chunkOrderItems, chunkObituary, measureObituaryChunks } from "./ProgramView";
+import { Page, OrderList, chunkOrderItems, chunkObituary, measureObituaryChunks, measureOrderItemChunks } from "./ProgramView";
 import { createPendingPayment, createYocoCheckout } from "@/services/programService";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db, auth } from "@/services/firebase";
@@ -278,6 +278,40 @@ const parts = program.name.trim().split(/\s+/);
     setObituaryChunks(result);
   }, [program.obituary, obituaryProbeRef]);
 
+    const voteProbeRef = useRef<HTMLDivElement>(null);
+  const [voteChunks, setVoteChunks] = useState<string[]>(
+    program.voteOfThanks ? [program.voteOfThanks] : []
+  );
+
+  useEffect(() => {
+    if (!program.voteOfThanks || !voteProbeRef.current) return;
+    const el = voteProbeRef.current;
+    const totalH = el.offsetHeight;
+    const totalW = el.offsetWidth;
+    if (!totalH || !totalW) return;
+    const contentW = totalW * (1 - 0.18 * 2);
+    const headingPx = totalW * 0.042;
+    const availableH = totalH * (1 - 0.20 - 0.30) - headingPx - totalW * 0.02;
+    const result = measureObituaryChunks(program.voteOfThanks, contentW, availableH);
+    setVoteChunks(result);
+  }, [program.voteOfThanks, voteProbeRef]);
+
+  const orderProbeRef = useRef<HTMLDivElement>(null);
+  const [orderChunks, setOrderChunks] = useState<OrderItem[][]>(() => chunkOrderItems(program.order));
+
+  useEffect(() => {
+    if (!program.order.length || !orderProbeRef.current) return;
+    const el = orderProbeRef.current;
+    const totalH = el.offsetHeight;
+    const totalW = el.offsetWidth;
+    if (!totalH || !totalW) return;
+    const contentW = totalW * (1 - 0.18 * 2);
+    const headingPx = totalW * 0.042;
+    const availableH = totalH * (1 - 0.20 - 0.30) - headingPx - totalW * 0.02;
+    const result = measureOrderItemChunks(program.order, contentW, availableH);
+    setOrderChunks(result);
+  }, [program.order, orderProbeRef]);
+
   type PageDef = { key: string; label: string; content: React.ReactNode };
   const pages: PageDef[] = [];
 
@@ -326,7 +360,6 @@ const parts = program.name.trim().split(/\s+/);
   });
 
   // Order of service — paginated, using the same shared OrderList component
-  const orderChunks = chunkOrderItems(program.order);
   orderChunks.forEach((chunk, chunkIdx) => {
     pages.push({
       key: `order-${chunkIdx}`,
@@ -370,27 +403,29 @@ const parts = program.name.trim().split(/\s+/);
     });
   }
 
-  // Vote of thanks
+  // Vote of thanks — paginated
   if (program.voteOfThanks) {
-    pages.push({
-      key: "vote",
-      label: "Vote of Thanks",
-      content: (
-        <>
-          <h2
-            className="font-serif text-3xl italic md:text-4xl"
-            style={{ color: `hsl(${accent})` }}
-          >
-            Vote Of Thanks
-          </h2>
-          <p
-            className="mt-5 w-full whitespace-pre-line text-left leading-relaxed"
-            style={{ color: `hsl(${ink})`, fontSize: obituaryFontSize }}
-          >
-            {program.voteOfThanks}
-          </p>
-        </>
-      ),
+    voteChunks.forEach((chunk, chunkIdx) => {
+      pages.push({
+        key: `vote-${chunkIdx}`,
+        label: chunkIdx === 0 ? "Vote of Thanks" : `Vote of Thanks (cont. ${chunkIdx + 1})`,
+        content: (
+          <>
+            <h2
+              className="font-serif text-3xl italic md:text-4xl"
+              style={{ color: `hsl(${accent})` }}
+            >
+              {chunkIdx === 0 ? "Vote Of Thanks" : "Vote Of Thanks (cont.)"}
+            </h2>
+            <div
+              className="mt-5 w-full overflow-hidden whitespace-pre-line text-left leading-relaxed"
+              style={{ color: `hsl(${ink})`, fontSize: obituaryFontSize }}
+            >
+              {chunk}
+            </div>
+          </>
+        ),
+      });
     });
   }
 
@@ -428,6 +463,23 @@ const parts = program.name.trim().split(/\s+/);
         className="pointer-events-none fixed opacity-0"
         style={{ aspectRatio: "3 / 4", width: "880px", top: "-9999px", left: "-9999px" }}
       />
+
+      {/* Invisible probe for vote-of-thanks measurement */}
+      <div
+        ref={voteProbeRef}
+        aria-hidden
+        className="pointer-events-none fixed opacity-0"
+        style={{ aspectRatio: "3 / 4", width: "880px", top: "-9999px", left: "-9999px" }}
+      />
+
+            {/* Invisible probe for order-of-service measurement */}
+      <div
+        ref={orderProbeRef}
+        aria-hidden
+        className="pointer-events-none fixed opacity-0"
+        style={{ aspectRatio: "3 / 4", width: "880px", top: "-9999px", left: "-9999px" }}
+      />
+
             {/* Header */}
       <div className="sticky top-0 z-10 border-b border-border bg-card/90 backdrop-blur">
         <div className="container flex max-w-3xl items-center justify-between py-4">
@@ -484,9 +536,11 @@ const parts = program.name.trim().split(/\s+/);
 
         {/* Page preview */}
         <div className="relative">
-          <Page frame={theme.frame} paper={theme.paper} accent={accent}>
-            {pages[currentPage].content}
-          </Page>
+          <div className={pages[currentPage].key === "cover" ? "mx-auto w-full max-w-sm" : ""}>
+            <Page frame={theme.frame} paper={theme.paper} accent={accent}>
+              {pages[currentPage].content}
+            </Page>
+          </div>
           {currentPage > 0 && (
             <button
               onClick={() => setCurrentPage((p) => p - 1)}
@@ -1996,18 +2050,19 @@ const handlePreview = (e: React.FormEvent) => {
             <Label htmlFor="vot" className="font-serif text-lg text-ink">
               Vote of thanks
             </Label>
-            <Textarea
-              id="vot"
-              value={voteOfThanks}
-              onChange={(e) => setVoteOfThanks(e.target.value)}
-              rows={4}
-              maxLength={800}
-              className="mt-2"
-              autoComplete="off"
-              autoCorrect="on"
-              autoCapitalize="sentences"
-              spellCheck
-            />
+           <Textarea
+  id="vot"
+  value={voteOfThanks}
+  onChange={(e) => setVoteOfThanks(e.target.value)}
+  rows={4}
+  maxLength={3000}
+  className="mt-2"
+  autoComplete="off"
+  autoCorrect="on"
+  autoCapitalize="sentences"
+  spellCheck
+/>
+<p className="mt-1 text-xs text-whisper">{voteOfThanks.length} / 3000</p>
           </div>
 
           {/* Gallery */}

@@ -102,6 +102,22 @@
 }
 
 @layer components {
+  .program-page,
+  .program-page-probe {
+    aspect-ratio: 3 / 4;
+  }
+
+  .program-page-content {
+    min-height: 0;
+  }
+
+  @media (max-width: 640px) {
+    .program-page,
+    .program-page-probe {
+      aspect-ratio: 3 / 5;
+    }
+  }
+
   .display-serif {
     font-family: 'Fraunces', serif;
     font-optical-sizing: auto;

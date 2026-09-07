@@ -36,6 +36,23 @@ const ITEMS_PER_ORDER_PAGE = 6;
 
 type OrderItem = { id: string; time?: string; title: string; by?: string };
 
+// ── Shared page-layout metrics ────────────────────────────────────────────────
+// Pagination uses the maximum responsive page size and the content padding below.
+// Any pagination math (obituary/vote/order chunking, here AND in Create.tsx) MUST
+// use these same numbers — otherwise text gets measured to fit space that doesn't
+// match what's rendered, and the last lines run under the corner artwork.
+export const PAGE_PAD_TOP = 0.10;
+export const PAGE_PAD_BOTTOM = 0.10; // must match the tightPadding Page padding below
+export const PAGE_PAD_SIDE = 0.18;   // must match Page's px-[18%] below
+export const PAGE_HEADING_RESERVE_PX = 36 * 1.2 + 20;
+
+export function getAvailableContentBox(totalW: number, totalH: number) {
+  const contentW = totalW * (1 - PAGE_PAD_SIDE * 2);
+  const availableH =
+    totalH * (1 - PAGE_PAD_TOP - PAGE_PAD_BOTTOM) - PAGE_HEADING_RESERVE_PX * 0.6;
+  return { contentW, availableH };
+}
+
 export const chunkOrderItems = (
   items: OrderItem[],
   perPage = ITEMS_PER_ORDER_PAGE
@@ -86,8 +103,8 @@ export function measureObituaryChunks(
   for (const token of tokens) {
     const candidate = current + token;
     probe.textContent = candidate;
-if (probe.scrollHeight > availableHeightPx && current.trim()) {
-          chunks.push(current.trim());
+    if (probe.scrollHeight > availableHeightPx && current.trim()) {
+      chunks.push(current.trim());
       current = token;
     } else {
       current = candidate;
@@ -97,6 +114,87 @@ if (probe.scrollHeight > availableHeightPx && current.trim()) {
 
   document.body.removeChild(probe);
   return chunks.length ? chunks : [text];
+}
+
+export function measureOrderItemChunks(
+  items: OrderItem[],
+  contentWidthPx: number,
+  availableHeightPx: number
+): OrderItem[][] {
+  if (!items.length || contentWidthPx <= 0 || availableHeightPx <= 0) return [items];
+
+  const probe = document.createElement("div");
+  probe.style.cssText = `
+    position: fixed;
+    top: -9999px;
+    left: -9999px;
+    visibility: hidden;
+    pointer-events: none;
+    width: ${contentWidthPx}px;
+  `;
+  document.body.appendChild(probe);
+
+  const ul = document.createElement("ul");
+  ul.style.cssText = `
+    margin-top: 1.5rem;
+    width: 100%;
+    max-width: 28rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: left;
+  `;
+  probe.appendChild(ul);
+
+  const makeLi = (item: OrderItem) => {
+    const li = document.createElement("li");
+    li.style.cssText = `display:flex; flex-direction:column; gap:0.125rem;`;
+
+    const topRow = document.createElement("div");
+    topRow.style.cssText = `display:flex; align-items:flex-start; justify-content:flex-start; gap:0.5rem;`;
+
+    const timeSpan = document.createElement("span");
+    timeSpan.style.cssText = `font-family: monospace; font-size: 0.75rem; letter-spacing: 0.025em; flex-shrink: 0;`;
+    timeSpan.textContent = item.time || "";
+    topRow.appendChild(timeSpan);
+
+    if (item.by) {
+      const bySpan = document.createElement("span");
+      bySpan.style.cssText = `font-size: 0.75rem; font-style: italic; min-width: 0; word-break: break-word;`;
+      bySpan.textContent = item.by;
+      topRow.appendChild(bySpan);
+    }
+
+    li.appendChild(topRow);
+
+    const titleSpan = document.createElement("span");
+    titleSpan.style.cssText = `font-weight: 500; text-transform: uppercase; letter-spacing: 0.025em; font-size: 0.875rem; display: block;`;
+    titleSpan.textContent = item.title;
+    li.appendChild(titleSpan);
+
+    return li;
+  };
+
+  const chunks: OrderItem[][] = [];
+  let current: OrderItem[] = [];
+
+  for (const item of items) {
+    const li = makeLi(item);
+    ul.appendChild(li);
+    if (ul.scrollHeight > availableHeightPx && current.length > 0) {
+      ul.removeChild(li);
+      chunks.push(current);
+      ul.innerHTML = "";
+      ul.appendChild(makeLi(item));
+      current = [item];
+    } else {
+      current.push(item);
+    }
+  }
+  if (current.length) chunks.push(current);
+
+  document.body.removeChild(probe);
+  return chunks.length ? chunks : [items];
 }
 
 function useObituaryChunks(obituary: string, probeRef: React.RefObject<HTMLDivElement>): string[] {
@@ -116,18 +214,12 @@ function useObituaryChunks(obituary: string, probeRef: React.RefObject<HTMLDivEl
       const totalH = probe.offsetHeight;
       if (!totalW || !totalH) return;
 
-  const contentW = totalW * (1 - 0.18 * 2);
-      const headingPx = 36 * 1.2 + 20;
-      // Matches tightPadding: pt-[12%] pb-[18%]
-const availableH = totalH * (1 - 0.12 - 0.18) - headingPx * 0.6;
+      const { contentW, availableH } = getAvailableContentBox(totalW, totalH);
 
       const result = measureObituaryChunks(obituary, contentW, availableH);
       setChunks(result);
-
-      console.log("probe", totalW, totalH, "contentW", contentW, "availableH", availableH, "lineH", 0.875 * 1.625 * 16, "fits", Math.floor(availableH / (0.875 * 1.625 * 16)));
     };
 
-    
     // Wait for layout so the probe has real dimensions
     const raf = requestAnimationFrame(() => setTimeout(measure, 50));
     return () => cancelAnimationFrame(raf);
@@ -136,7 +228,32 @@ const availableH = totalH * (1 - 0.12 - 0.18) - headingPx * 0.6;
   return chunks;
 }
 
+function useOrderChunks(order: OrderItem[], probeRef: React.RefObject<HTMLDivElement>): OrderItem[][] {
+  const [chunks, setChunks] = useState<OrderItem[][]>(() => chunkOrderItems(order));
 
+  useEffect(() => {
+    if (!order.length) return;
+
+    const measure = () => {
+      const probe = probeRef.current;
+      if (!probe) return;
+
+      const totalW = probe.offsetWidth;
+      const totalH = probe.offsetHeight;
+      if (!totalW || !totalH) return;
+
+      const { contentW, availableH } = getAvailableContentBox(totalW, totalH);
+
+      const result = measureOrderItemChunks(order, contentW, availableH);
+      setChunks(result);
+    };
+
+    const raf = requestAnimationFrame(() => setTimeout(measure, 50));
+    return () => cancelAnimationFrame(raf);
+  }, [order, probeRef]);
+
+  return chunks;
+}
 // ── Shared OrderList — used in EVERY context (static, QR, preview) ────────────
 export const OrderList = ({
   chunk,
@@ -153,7 +270,7 @@ export const OrderList = ({
 }) => (
   <>
     <h2
-      className="font-serif text-3xl italic md:text-4xl"
+      className="font-serif text-3xl italic"
       style={{ color: `hsl(${accent})` }}
     >
       {chunkIdx === 0 ? "Order Of Service" : "Order Of Service (cont.)"}
@@ -161,21 +278,24 @@ export const OrderList = ({
     <ul className="mt-6 w-full max-w-md space-y-3 text-left">
       {chunk.map((item) => (
         <li key={item.id} className="flex flex-col gap-0.5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-start gap-2">
             <span
-              className="font-mono text-xs tracking-wide"
+              className="shrink-0 font-mono text-xs tracking-wide"
               style={{ color: `hsl(${accent})` }}
             >
               {item.time || ""}
             </span>
             {item.by && (
-              <span className="text-xs italic" style={{ color: `hsl(${soft})` }}>
+              <span
+                className="min-w-0 break-words text-left text-xs italic"
+                style={{ color: `hsl(${soft})` }}
+              >
                 {item.by}
               </span>
             )}
           </div>
           <span
-            className="font-medium uppercase tracking-wide text-sm md:text-base"
+            className="font-medium uppercase tracking-wide text-sm"
             style={{ color: `hsl(${ink})` }}
           >
             {item.title}
@@ -204,8 +324,8 @@ export const Page = ({
 }) => (
   <div
     id={id}
-   className="relative mx-auto w-full overflow-hidden rounded-md shadow-paper print:shadow-none"
-style={{ aspectRatio: "3 / 4", maxWidth: "880px", transform: "translateZ(0)", backfaceVisibility: "hidden" } as React.CSSProperties}
+  className={`${tightPadding ? "program-page-content" : "program-page"} relative mx-auto w-full overflow-hidden rounded-md shadow-paper print:shadow-none`}
+style={{ maxWidth: "880px", transform: "translateZ(0)", backfaceVisibility: "hidden" } as React.CSSProperties}
   >
     <div
       className="pointer-events-none absolute inset-3 rounded-sm"
@@ -236,8 +356,8 @@ style={{ aspectRatio: "3 / 4", maxWidth: "880px", transform: "translateZ(0)", ba
       crossOrigin="anonymous"
       className="pointer-events-none absolute -bottom-[5%] -right-[5%] h-[38%] w-[38%] rotate-180 select-none object-contain"
     />
-<div className={`relative z-10 flex h-full w-full flex-col items-center justify-start overflow-hidden px-[18%] text-center ${tightPadding ? "pt-[12%] pb-[18%]" : "pt-[20%] pb-[30%]"}`} style={{ transform: "translateZ(0)" }}>
-    {children}
+<div className={`relative z-10 flex ${tightPadding ? "h-auto" : "h-full"} w-full flex-col items-center justify-start overflow-hidden px-[18%] text-center ${tightPadding ? "pt-[10%] pb-[10%]" : "pt-[20%] pb-[30%]"}`} style={{ transform: "translateZ(0)" }}>
+      {children}
 </div>
   </div>
 );
@@ -345,6 +465,7 @@ const ProgramView = () => {
   }, []);
 
   const [program, setProgram] = useState<Program | null | undefined>(undefined);
+  const [programLoadFailed, setProgramLoadFailed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
@@ -356,6 +477,11 @@ const [pdfLoading, setPdfLoading] = useState(false);
   const obituaryProbeRef = useRef<HTMLDivElement>(null);
   const obituaryChunks = useObituaryChunks(program?.obituary ?? "", obituaryProbeRef);
 
+  const voteProbeRef = useRef<HTMLDivElement>(null);
+  const voteChunks = useObituaryChunks(program?.voteOfThanks ?? "", voteProbeRef);
+
+  const orderProbeRef = useRef<HTMLDivElement>(null);
+  const orderChunks = useOrderChunks(program?.order ?? [], orderProbeRef);
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
@@ -374,23 +500,47 @@ const [pdfLoading, setPdfLoading] = useState(false);
   useEffect(() => {
     if (!id) return;
     const docRef = doc(db, "programs", id);
-    const unsubscribe = onSnapshot(
-      docRef,
-      (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data() as Program;
-          setProgram(data);
-          if (data && Date.now() - data.createdAt < 10000) setShowShare(true);
-        } else {
-          setProgram(null);
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let retryCount = 0;
+    let unsubscribe = () => {};
+
+    const subscribe = () => {
+      unsubscribe();
+      unsubscribe = onSnapshot(
+        docRef,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data() as Program;
+            setProgram(data);
+            setProgramLoadFailed(false);
+            if (data && Date.now() - data.createdAt < 10000) setShowShare(true);
+          } else if (retryCount < 4) {
+            retryCount += 1;
+            retryTimer = setTimeout(subscribe, 1500);
+          } else {
+            setProgram(null);
+            setProgramLoadFailed(true);
+          }
+        },
+        (error) => {
+          console.error("Error fetching program:", error);
+          if (retryCount < 4) {
+            retryCount += 1;
+            retryTimer = setTimeout(subscribe, 1500);
+          } else {
+            setProgram(null);
+            setProgramLoadFailed(true);
+          }
         }
-      },
-      (error) => {
-        console.error("Error fetching program:", error);
-        setProgram(null);
-      }
-    );
-    return () => unsubscribe();
+      );
+    };
+
+    subscribe();
+
+    return () => {
+      if (retryTimer) clearTimeout(retryTimer);
+      unsubscribe();
+    };
   }, [id]);
 
   // ── Generate & save share preview image (runs once, right after creation) ──
@@ -527,7 +677,6 @@ const addItem = () => {
       ]);
 
       // Collect all order page IDs — supports multi-page order
-      const orderChunks = chunkOrderItems(program.order);
       const orderPageIds = orderChunks.map((_, i) =>
         i === 0 ? "pdf-page-order" : `pdf-page-order-${i}`
       );
@@ -538,8 +687,12 @@ if (program.obituary) {
           pageIds.push(i === 0 ? "pdf-page-obituary" : `pdf-page-obituary-${i}`);
         });
       }
-            if (program.voteOfThanks) pageIds.push("pdf-page-vote");
-      if (program.gallery.length > 0) pageIds.push("pdf-page-gallery");
+            if (program.voteOfThanks) {
+              voteChunks.forEach((_, i) => {
+                pageIds.push(i === 0 ? "pdf-page-vote" : `pdf-page-vote-${i}`);
+              });
+            }
+          if (program.gallery.length > 0) pageIds.push("pdf-page-gallery");
 
       const canvases: HTMLCanvasElement[] = [];
       for (const pageId of pageIds) {
@@ -686,9 +839,13 @@ const canvas = await html2canvas(el, {
   if (program === null) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gradient-warm px-6 text-center">
-        <h1 className="font-serif text-3xl text-ink">Program not found</h1>
+        <h1 className="font-serif text-3xl text-ink">
+          {programLoadFailed ? "Program could not be loaded" : "Program not found"}
+        </h1>
         <p className="text-whisper">
-          This link may have expired or been entered incorrectly.
+          {programLoadFailed
+            ? "Please refresh the page and try the link again."
+            : "This link may have expired or been entered incorrectly."}
         </p>
         <Link to="/">
           <Button variant="outline">Return home</Button>
@@ -726,7 +883,7 @@ const canvas = await html2canvas(el, {
   // ── Cover content (reused in both QR and static views) ───────────────────
   const coverContent = (
     <>
-      <p className="font-serif text-base italic md:text-xl" style={{ color: `hsl(${accent})` }}>
+      <p className="font-serif text-base italic" style={{ color: `hsl(${accent})` }}>
         In loving memory of
       </p>
       {program.profilePhoto && (
@@ -745,21 +902,21 @@ style={{ width: "112px", height: "140px", borderRadius: "50%", borderColor: `hsl
         </div>
       )}
       <h1
-        className="mt-3 font-serif text-2xl uppercase tracking-wide md:text-4xl"
+        className="mt-3 font-serif text-2xl uppercase tracking-wide"
         style={{ color: `hsl(${ink})` }}
       >
         {givenNames}
       </h1>
       {lastName && (
-        <p className="mt-1 font-serif text-xl italic md:text-2xl" style={{ color: `hsl(${accent})` }}>
+        <p className="mt-1 font-serif text-xl italic" style={{ color: `hsl(${accent})` }}>
           {lastName}
         </p>
       )}
-      <p className="mt-3 font-serif text-xs italic md:text-sm" style={{ color: `hsl(${soft})` }}>
+      <p className="mt-3 font-serif text-xs italic" style={{ color: `hsl(${soft})` }}>
         {formatDate(program.dob)} — {formatDate(program.dop)}
       </p>
       {program.tribute && (
-        <p className="mt-2 font-serif text-sm italic md:text-base" style={{ color: `hsl(${soft})` }}>
+        <p className="mt-2 font-serif text-sm italic" style={{ color: `hsl(${soft})` }}>
           {program.tribute}
         </p>
       )}
@@ -773,7 +930,7 @@ style={{ width: "112px", height: "140px", borderRadius: "50%", borderColor: `hsl
   pages.push({ key: "cover", content: coverContent });
 
   // Paginated order of service
-  chunkOrderItems(program.order).forEach((chunk, chunkIdx) => {
+  orderChunks.forEach((chunk, chunkIdx) => {
     pages.push({
       key: `order-${chunkIdx}`,
       content: (
@@ -794,7 +951,7 @@ if (program.obituary) {
         key: `obituary-${chunkIdx}`,
         content: (
           <>
-            <h2 className="font-serif text-3xl italic md:text-4xl" style={{ color: `hsl(${accent})` }}>
+            <h2 className="font-serif text-3xl italic" style={{ color: `hsl(${accent})` }}>
               {chunkIdx === 0 ? "Obituary" : "Obituary (cont.)"}
             </h2>
             <div
@@ -809,21 +966,23 @@ if (program.obituary) {
     });
   }
   if (program.voteOfThanks) {
-    pages.push({
-      key: "vote",
-      content: (
-        <>
-          <h2 className="font-serif text-3xl italic md:text-4xl" style={{ color: `hsl(${accent})` }}>
-            Vote Of Thanks
-          </h2>
-          <p
-            className="mt-5 w-full whitespace-pre-line text-left leading-relaxed"
-            style={{ color: `hsl(${ink})`, fontSize: obituaryFontSize }}
-          >
-            {program.voteOfThanks}
-          </p>
-        </>
-      ),
+    voteChunks.forEach((chunk, chunkIdx) => {
+      pages.push({
+        key: `vote-${chunkIdx}`,
+        content: (
+          <>
+            <h2 className="font-serif text-3xl italic" style={{ color: `hsl(${accent})` }}>
+              {chunkIdx === 0 ? "Vote Of Thanks" : "Vote Of Thanks (cont.)"}
+            </h2>
+            <div
+              className="mt-5 w-full whitespace-pre-line text-left leading-relaxed"
+              style={{ color: `hsl(${ink})`, fontSize: obituaryFontSize }}
+            >
+              {chunk}
+            </div>
+          </>
+        ),
+      });
     });
   }
 
@@ -832,7 +991,7 @@ if (program.obituary) {
       key: "gallery",
       content: (
         <>
-          <h2 className="font-serif text-3xl italic md:text-4xl" style={{ color: `hsl(${accent})` }}>
+          <h2 className="font-serif text-3xl italic" style={{ color: `hsl(${accent})` }}>
             Cherished Moments
           </h2>
           <div
@@ -869,9 +1028,24 @@ if (program.obituary) {
     <div
           ref={obituaryProbeRef}
           aria-hidden
-          className="pointer-events-none fixed opacity-0"
-          style={{ aspectRatio: "3 / 4", width: "min(384px, 100vw - 2rem)", top: "-9999px", left: "-9999px" }}
+          className="program-page-probe pointer-events-none fixed opacity-0"
+          style={{ width: "min(384px, 100vw - 2rem)", top: "-9999px", left: "-9999px" }}
         />
+
+          <div
+          ref={voteProbeRef}
+          aria-hidden
+          className="program-page-probe pointer-events-none fixed opacity-0"
+          style={{ width: "min(384px, 100vw - 2rem)", top: "-9999px", left: "-9999px" }}
+        />
+
+        <div
+          ref={orderProbeRef}
+          aria-hidden
+          className="program-page-probe pointer-events-none fixed opacity-0"
+          style={{ width: "min(384px, 100vw - 2rem)", top: "-9999px", left: "-9999px" }}
+        />
+
         <style>{`
           @keyframes slideInFromRight {
             from { transform: translateX(60px); opacity: 0; }
@@ -962,7 +1136,6 @@ if (program.obituary) {
   }
 
   // ── Normal (desktop / print) view ─────────────────────────────────────────
-  const orderChunks = chunkOrderItems(program.order);
 
   return (
     <div className="min-h-screen bg-gradient-warm">
@@ -1039,118 +1212,139 @@ if (program.obituary) {
     <div
         ref={obituaryProbeRef}
         aria-hidden
-        className="pointer-events-none fixed -left-[9999px] -top-[9999px] opacity-0"
-        style={{ aspectRatio: "3 / 4", width: "min(880px, 100vw - 2rem)" }}
+        className="program-page-probe pointer-events-none fixed -left-[9999px] -top-[9999px] opacity-0"
+        style={{ width: "min(384px, 100vw - 2rem)" }}
+      />
+
+          <div
+        ref={voteProbeRef}
+        aria-hidden
+        className="program-page-probe pointer-events-none fixed -left-[9999px] -top-[9999px] opacity-0"
+        style={{ width: "min(384px, 100vw - 2rem)" }}
+      />
+
+            <div
+        ref={orderProbeRef}
+        aria-hidden
+        className="program-page-probe pointer-events-none fixed -left-[9999px] -top-[9999px] opacity-0"
+        style={{ width: "min(384px, 100vw - 2rem)" }}
       />
 
       <article className="container max-w-5xl space-y-10 pb-20 fade-in">
 
         {/* PAGE 1 — COVER */}
-        <Page id="pdf-page-cover" frame={theme.frame} paper={theme.paper} accent={accent}>
-          {coverContent}
-        </Page>
+        <div className="mx-auto w-full max-w-sm">
+          <Page id="pdf-page-cover" frame={theme.frame} paper={theme.paper} accent={accent}>
+            {coverContent}
+          </Page>
+        </div>
 
         {/* PAGE(S) — ORDER OF SERVICE (auto-paginated) */}
         {orderChunks.map((chunk, chunkIdx) => (
-          <Page
-            key={`order-${chunkIdx}`}
-            id={chunkIdx === 0 ? "pdf-page-order" : `pdf-page-order-${chunkIdx}`}
-            frame={theme.frame}
-            paper={theme.paper}
-            accent={accent}
-            tightPadding
-          >
-            {/* Edit UI only shown on the first order page */}
-            {chunkIdx === 0 && isEditing ? (
-              <div className="flex w-full flex-col gap-3 overflow-visible">
-                <div className="flex items-center justify-between">
-                  <h2
-                    className="font-serif text-2xl italic"
-                    style={{ color: `hsl(${accent})` }}
-                  >
-                    Order Of Service
-                  </h2>
-                  <button
-                    onClick={cancelEdit}
-                    aria-label="Cancel editing"
-                    className="rounded-full p-1 transition hover:opacity-60"
-                    style={{ color: `hsl(${soft})` }}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
+          <div key={`order-${chunkIdx}`} className="mx-auto w-full max-w-sm">
+            <Page
+              id={chunkIdx === 0 ? "pdf-page-order" : `pdf-page-order-${chunkIdx}`}
+              frame={theme.frame}
+              paper={theme.paper}
+              accent={accent}
+              tightPadding={isEditing}
+            >
+              {/* Edit UI only shown on the first order page */}
+              {chunkIdx === 0 && isEditing ? (
+                <div className="flex w-full flex-col gap-3 overflow-visible">
+                  <div className="flex items-center justify-between">
+                    <h2
+                      className="font-serif text-2xl italic"
+                      style={{ color: `hsl(${accent})` }}
+                    >
+                      Order Of Service
+                    </h2>
+                    <button
+                      onClick={cancelEdit}
+                      aria-label="Cancel editing"
+                      className="rounded-full p-1 transition hover:opacity-60"
+                      style={{ color: `hsl(${soft})` }}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
 
 <div
-  className="flex flex-col gap-2 overflow-y-auto pr-2"
+  id="order-service-editor"
+  className="flex flex-col gap-3 overflow-y-auto pr-1"
   style={{
-    maxHeight: window.innerWidth < 768 ? "180px" : "420px",
+    maxHeight: window.innerWidth < 768 ? "280px" : "420px",
   }}
 >                  {editItems.map((item, index) => (
                     <div
                       key={item.id}
-                      className="flex flex-col gap-1.5 rounded-md px-3 py-2"
+                      className="flex items-start gap-2 rounded-lg border p-2.5"
                       style={{
-                        background: `hsl(${accent} / 0.06)`,
-                        border: `1px solid hsl(${accent} / 0.2)`,
+                        background: `hsl(${theme.paper})`,
+                        borderColor: `hsl(${accent} / 0.2)`,
                       }}
                     >
-                      <div className="flex items-center gap-2">
+                      <span
+                        className="mt-2 w-5 shrink-0 text-center font-serif text-sm"
+                        style={{ color: `hsl(${accent})` }}
+                      >
+                        {index + 1}
+                      </span>
+                      <div className="grid min-w-0 flex-1 gap-2">
                         <input
                           type="time"
                           value={item.time ?? ""}
                           onChange={(e) => updateItem(index, "time", e.target.value)}
-                          className="flex-1 rounded border px-2 py-1 font-mono text-xs outline-none focus:ring-1"
+                          aria-label="Time"
+                          className="w-full min-w-0 rounded border bg-ivory px-2 py-1.5 font-mono text-xs outline-none focus:ring-1"
                           style={{
                             color: `hsl(${accent})`,
                             borderColor: `hsl(${accent} / 0.3)`,
-                            background: `hsl(${accent} / 0.04)`,
                           }}
                         />
-                        <button
-                          onClick={() => deleteItem(index)}
-                          aria-label="Delete item"
-                          className="shrink-0 rounded p-1 transition hover:opacity-60"
-                          style={{ color: `hsl(${soft})` }}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        <input
+                          value={item.title}
+                          onChange={(e) => updateItem(index, "title", e.target.value)}
+                          placeholder="e.g. Opening & Welcome"
+                          className="w-full min-w-0 rounded border bg-ivory px-2 py-1.5 text-xs font-medium uppercase tracking-wide outline-none focus:ring-1"
+                          style={{
+                            color: `hsl(${ink})`,
+                            borderColor: `hsl(${accent} / 0.3)`,
+                          }}
+                        />
+                        <input
+                          value={item.by ?? ""}
+                          onChange={(e) => updateItem(index, "by", e.target.value)}
+                          placeholder="Led by (optional)"
+                          className="w-full min-w-0 rounded border bg-ivory px-2 py-1.5 text-xs italic outline-none focus:ring-1"
+                          style={{
+                            color: `hsl(${soft})`,
+                            borderColor: `hsl(${accent} / 0.2)`,
+                          }}
+                        />
                       </div>
-                      <input
-                        value={item.title}
-                        onChange={(e) => updateItem(index, "title", e.target.value)}
-                        placeholder="e.g. Opening & Welcome"
-                        className="w-full rounded border px-2 py-1.5 text-xs font-medium uppercase tracking-wide outline-none focus:ring-1"
-                        style={{
-                          color: `hsl(${ink})`,
-                          borderColor: `hsl(${accent} / 0.3)`,
-                          background: `hsl(${accent} / 0.04)`,
-                        }}
-                      />
-                      <input
-                        value={item.by ?? ""}
-                        onChange={(e) => updateItem(index, "by", e.target.value)}
-                        placeholder="Led by (optional)"
-                        className="w-full rounded border px-2 py-1 text-xs italic outline-none focus:ring-1"
-                        style={{
-                          color: `hsl(${soft})`,
-                          borderColor: `hsl(${accent} / 0.2)`,
-                          background: `hsl(${accent} / 0.04)`,
-                        }}
-                      />
+                      <button
+                        onClick={() => deleteItem(index)}
+                        aria-label="Delete item"
+                        className="mt-1 shrink-0 rounded p-1 transition hover:opacity-60"
+                        style={{ color: `hsl(${soft})` }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   ))}
                 </div>
 
-                <button
-                  onClick={addItem}
-                  className="flex items-center gap-1.5 self-start rounded-md px-2 py-1 text-xs transition hover:opacity-70"
-                  style={{
-                    color: `hsl(${accent})`,
-                    border: `1px dashed hsl(${accent} / 0.4)`,
-                  }}
-                >
-                  <Plus className="h-3.5 w-3.5" /> Add item
-                </button>
+                  <button
+                    onClick={addItem}
+                    className="flex items-center gap-1.5 self-start rounded-md border px-3 py-1.5 text-xs transition hover:opacity-70"
+                    style={{
+                      color: `hsl(${accent})`,
+                      borderColor: `hsl(${accent} / 0.4)`,
+                    }}
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Add item
+                  </button>
 
 <div
   className="sticky bottom-0 flex justify-end gap-2 pt-2 pb-2"
@@ -1176,67 +1370,68 @@ if (program.obituary) {
                     {saving ? "Saving…" : "Save changes"}
                   </button>
                 </div>
-              </div>
-            ) : (
-              <OrderList
-                chunk={chunk}
-                chunkIdx={chunkIdx}
-                accent={accent}
-                ink={ink}
-                soft={soft}
-              />
-            )}
-          </Page>
+                </div>
+              ) : (
+                <OrderList
+                  chunk={chunk}
+                  chunkIdx={chunkIdx}
+                  accent={accent}
+                  ink={ink}
+                  soft={soft}
+                />
+              )}
+            </Page>
+          </div>
         ))}
 
-        {/* PAGE — OBITUARY */}
- {/* PAGE(S) — OBITUARY (auto-paginated) */}
+        {/* PAGE(S) — OBITUARY (auto-paginated) */}
         {program.obituary && obituaryChunks.map((chunk, chunkIdx) => (
-          <Page
-            key={`obituary-${chunkIdx}`}
-            id={chunkIdx === 0 ? "pdf-page-obituary" : `pdf-page-obituary-${chunkIdx}`}
-            frame={theme.frame}
-            paper={theme.paper}
-            accent={accent}
-            tightPadding
-          >
-            <h2
-              className="font-serif text-3xl italic md:text-4xl"
-              style={{ color: `hsl(${accent})` }}
+          <div key={`obituary-${chunkIdx}`} className="mx-auto w-full max-w-sm">
+            <Page
+              id={chunkIdx === 0 ? "pdf-page-obituary" : `pdf-page-obituary-${chunkIdx}`}
+              frame={theme.frame}
+              paper={theme.paper}
+              accent={accent}
             >
-              {chunkIdx === 0 ? "Obituary" : "Obituary (cont.)"}
-            </h2>
-            <div
-              className="mt-5 w-full whitespace-pre-line text-left leading-relaxed"
-              style={{ color: `hsl(${ink})`, fontSize: obituaryFontSize }}
-            >
-              {chunk}
-            </div>
-          </Page>
+              <h2
+                className="font-serif text-3xl italic"
+                style={{ color: `hsl(${accent})` }}
+              >
+                {chunkIdx === 0 ? "Obituary" : "Obituary (cont.)"}
+              </h2>
+              <div
+                className="mt-5 w-full whitespace-pre-line text-left leading-relaxed"
+                style={{ color: `hsl(${ink})`, fontSize: obituaryFontSize }}
+              >
+                {chunk}
+              </div>
+            </Page>
+          </div>
         ))}
-
-        {/* PAGE — VOTE OF THANKS */}
-        {program.voteOfThanks && (
-          <Page
-            id="pdf-page-vote"
-            frame={theme.frame}
-            paper={theme.paper}
-            accent={accent}
-          >
-            <h2
-              className="font-serif text-3xl italic md:text-4xl"
-              style={{ color: `hsl(${accent})` }}
+        {/* PAGE(S) — VOTE OF THANKS (auto-paginated) */}
+        {program.voteOfThanks && voteChunks.map((chunk, chunkIdx) => (
+          <div key={`vote-${chunkIdx}`} className="mx-auto w-full max-w-sm">
+            <Page
+              id={chunkIdx === 0 ? "pdf-page-vote" : `pdf-page-vote-${chunkIdx}`}
+              frame={theme.frame}
+              paper={theme.paper}
+              accent={accent}
             >
-              Vote Of Thanks
-            </h2>
-            <p
-              className="mt-5 w-full whitespace-pre-line text-left leading-relaxed"
-              style={{ color: `hsl(${ink})`, fontSize: obituaryFontSize }}
-            >
-              {program.voteOfThanks}
-            </p>
-          </Page>
-        )}
+              <h2
+                className="font-serif text-3xl italic"
+                style={{ color: `hsl(${accent})` }}
+              >
+                {chunkIdx === 0 ? "Vote Of Thanks" : "Vote Of Thanks (cont.)"}
+              </h2>
+              <div
+                className="mt-5 w-full whitespace-pre-line text-left leading-relaxed"
+                style={{ color: `hsl(${ink})`, fontSize: obituaryFontSize }}
+              >
+                {chunk}
+              </div>
+            </Page>
+          </div>
+        ))}
 
         {/* GALLERY */}
         {program.gallery.length > 0 && (
