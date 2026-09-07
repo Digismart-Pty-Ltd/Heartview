@@ -4,77 +4,81 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Eventify — soft, elegant memorial design system. All colors HSL. */
+/* HeartView — modern, elegant event design system. All colors HSL. */
 
 @layer base {
   :root {
-    --background: 40 38% 97%;
-    --foreground: 25 25% 18%;
+    /* HeartView — exact brand palette */
+    --brand-pink: 345 100% 68%;   /* #FF5A7D */
+    --brand-purple: 254 100% 68%; /* #7B5CFF */
+    --brand-peach: 9 100% 84%;    /* #FFB9AE */
+    --brand-lavender: 260 90% 74%; /* #B07CFF */
 
-    --card: 40 50% 99%;
-    --card-foreground: 25 25% 18%;
+    --background: 30 100% 98%; /* soft ivory */
+    --foreground: 235 18% 14%; /* deep charcoal text */
 
-    --popover: 40 50% 99%;
-    --popover-foreground: 25 25% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 235 18% 14%;
 
-    /* Muted gold */
-    --primary: 36 42% 52%;
-    --primary-foreground: 40 50% 99%;
-    --primary-glow: 38 55% 68%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 235 18% 14%;
 
-    --secondary: 40 30% 92%;
-    --secondary-foreground: 25 25% 22%;
+    --primary: var(--brand-pink);
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 345 100% 82%;
 
-    --muted: 40 25% 93%;
-    --muted-foreground: 28 12% 42%;
+    --secondary: var(--brand-purple);
+    --secondary-foreground: 0 0% 100%;
 
-    --accent: 38 45% 88%;
-    --accent-foreground: 25 25% 22%;
+    --muted: 330 20% 96%;
+    --muted-foreground: 235 18% 44%;
 
-    --destructive: 0 60% 50%;
-    --destructive-foreground: 40 50% 99%;
+    --accent: var(--brand-lavender);
+    --accent-foreground: 0 0% 100%;
 
-    --border: 36 25% 85%;
-    --input: 36 25% 88%;
-    --ring: 36 42% 52%;
+    --destructive: 345 80% 56%;
+    --destructive-foreground: 0 0% 100%;
 
-    --radius: 0.75rem;
+    --gold: var(--brand-peach);
+    --gold-soft: 9 100% 90%;
 
-    /* Custom tokens */
-    --ivory: 40 38% 97%;
-    --cream: 38 45% 94%;
-    --cream-deep: 38 30% 88%;
-    --gold: 36 42% 52%;
-    --gold-soft: 38 55% 78%;
-    --ink: 25 25% 18%;
-    --whisper: 28 12% 52%;
+    --border: 330 30% 93%;
+    --input: 330 45% 97%;
+    --ring: var(--primary);
 
-    /* Editorial palette */
-    --forest: 160 28% 18%;
-    --forest-deep: 160 32% 10%;
-    --sage: 100 12% 55%;
-    --terracotta: 18 45% 52%;
+    --radius: 0.5rem;
 
-    --gradient-warm: linear-gradient(180deg, hsl(40 45% 98%) 0%, hsl(38 40% 94%) 100%);
-    --gradient-gold: linear-gradient(135deg, hsl(36 42% 52%) 0%, hsl(38 55% 68%) 100%);
-    --gradient-overlay: linear-gradient(180deg, hsl(40 38% 97% / 0) 0%, hsl(40 38% 97% / 0.85) 100%);
-    --gradient-hero: radial-gradient(ellipse at top, hsl(38 45% 96%) 0%, hsl(38 30% 88%) 100%);
-    --gradient-forest: linear-gradient(180deg, hsl(160 28% 18%) 0%, hsl(160 32% 10%) 100%);
+    --ivory: 30 100% 99%;
+    --cream: 40 20% 98%;
+    --cream-deep: 40 18% 94%;
+    --ink: 235 18% 14%;
+    --whisper: 330 20% 70%;
 
-    --shadow-soft: 0 4px 24px -8px hsl(25 25% 18% / 0.08);
-    --shadow-elegant: 0 20px 60px -20px hsl(36 42% 30% / 0.18);
-    --shadow-paper: 0 1px 2px hsl(25 25% 18% / 0.04), 0 8px 32px -8px hsl(25 25% 18% / 0.08);
+    --forest: 235 18% 14%;
+    --forest-deep: 235 18% 10%;
+    --sage: 330 20% 85%;
+    --terracotta: var(--brand-lavender);
 
-    --transition-soft: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    --gradient-warm: linear-gradient(180deg, hsl(30 100% 98%) 0%, hsl(40 18% 96%) 100%);
+    --gradient-gold: linear-gradient(135deg, hsl(var(--brand-peach)) 0%, hsl(var(--brand-lavender)) 100%);
+    --gradient-overlay: linear-gradient(180deg, hsl(30 100% 98% / 0) 0%, hsl(30 100% 98% / 0.85) 100%);
+    --gradient-hero: radial-gradient(ellipse at top, hsl(var(--brand-peach) / 0.95) 0%, hsl(var(--brand-pink) / 0.9) 100%);
+    --gradient-forest: linear-gradient(180deg, hsl(235 18% 14%) 0%, hsl(235 18% 10%) 100%);
 
-    --sidebar-background: 40 38% 97%;
-    --sidebar-foreground: 25 25% 18%;
-    --sidebar-primary: 36 42% 52%;
-    --sidebar-primary-foreground: 40 50% 99%;
-    --sidebar-accent: 38 45% 88%;
-    --sidebar-accent-foreground: 25 25% 22%;
-    --sidebar-border: 36 25% 85%;
-    --sidebar-ring: 36 42% 52%;
+    --shadow-soft: 0 8px 30px -12px hsl(235 18% 14% / 0.06);
+    --shadow-elegant: 0 24px 80px -28px hsl(235 18% 10% / 0.18);
+    --shadow-paper: 0 1px 2px hsl(235 18% 14% / 0.04), 0 8px 32px -8px hsl(235 18% 14% / 0.06);
+
+    --transition-soft: all 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+
+    --sidebar-background: 30 100% 98%;
+    --sidebar-foreground: 235 18% 14%;
+    --sidebar-primary: var(--brand-pink);
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: var(--brand-purple);
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 330 30% 93%;
+    --sidebar-ring: var(--brand-pink);
   }
 }
 
@@ -155,11 +159,11 @@
   .hover-lift { transition: transform .35s cubic-bezier(.22,1,.36,1), box-shadow .35s ease; }
   .hover-lift:hover { transform: translateY(-4px); box-shadow: var(--shadow-elegant); }
   .glass-nav {
-    background: hsl(40 38% 97% / 0.72);
-    backdrop-filter: saturate(140%) blur(14px);
-    -webkit-backdrop-filter: saturate(140%) blur(14px);
-    border: 1px solid hsl(160 28% 18% / 0.08);
-    box-shadow: 0 10px 40px -18px hsl(160 32% 10% / 0.25);
+    background: hsl(var(--background) / 0.78);
+    backdrop-filter: saturate(120%) blur(10px);
+    -webkit-backdrop-filter: saturate(120%) blur(10px);
+    border: 1px solid hsl(var(--forest-deep) / 0.06);
+    box-shadow: var(--shadow-elegant);
   }
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(12px); }

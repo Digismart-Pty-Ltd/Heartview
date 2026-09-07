@@ -1,49 +1,211 @@
 /// <reference types="vite/client" />
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { BackButton } from "@/components/BackButton";
 import { Button } from "@/components/ui/button";
 import {
-  Copy,
   Check,
-  ArrowLeft,
-  Printer,
   ChevronLeft,
   ChevronRight,
   Pencil,
   Trash2,
   Plus,
   X,
+  QrCode as QrCodeIcon,
+  Share2,
+  Download,
 } from "lucide-react";
 import { formatDate, type Program } from "@/lib/program";
+import { auth } from "@/services/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import type { User } from "firebase/auth";
 import { getTheme } from "@/lib/themes";
 import crossDove from "@/assets/cross-dove.png";
+import heartViewLogo from "@/assets/heartview-logo.png";
 import { toast } from "sonner";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/services/firebase";
 import QRCode from "qrcode";
+import { useInactivityLogout } from "@/hooks/useInactivityLogout";
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "@/services/firebase";
 
+// ── Order pagination ──────────────────────────────────────────────────────────
+const ITEMS_PER_ORDER_PAGE = 6;
+
+type OrderItem = { id: string; time?: string; title: string; by?: string };
+
+export const chunkOrderItems = (
+  items: OrderItem[],
+  perPage = ITEMS_PER_ORDER_PAGE
+): OrderItem[][] => {
+  const chunks: OrderItem[][] = [];
+  for (let i = 0; i < items.length; i += perPage) {
+    chunks.push(items.slice(i, i + perPage));
+  }
+  return chunks.length ? chunks : [[]];
+};
+
+// ── Obituary pagination ───────────────────────────────────────────────────────
+// Keep a simple export for the PDF page-id collector (downloadPdf still calls this)
+export const chunkObituary = (text: string): string[] => {
+  if (!text) return [text];
+  // rough split so downloadPdf knows how many page ids to expect;
+  // actual visual chunks come from useObituaryChunks below
+  return text.match(/(.|[\r\n]){1,600}/g) ?? [text];
+};
+
+export function measureObituaryChunks(
+  text: string,
+  contentWidthPx: number,
+  availableHeightPx: number
+): string[] {
+  if (!text || contentWidthPx <= 0 || availableHeightPx <= 0) return [text];
+
+  const probe = document.createElement("div");
+  probe.style.cssText = `
+    position: fixed;
+    top: -9999px;
+    left: -9999px;
+    visibility: hidden;
+    pointer-events: none;
+    width: ${contentWidthPx}px;
+    font-size: 0.875rem;
+    line-height: 1.625;
+    white-space: pre-line;
+    text-align: center;
+    word-break: break-word;
+  `;
+  document.body.appendChild(probe);
+
+  const tokens = text.split(/(\s+)/);
+  const chunks: string[] = [];
+  let current = "";
+
+  for (const token of tokens) {
+    const candidate = current + token;
+    probe.textContent = candidate;
+if (probe.scrollHeight > availableHeightPx && current.trim()) {
+          chunks.push(current.trim());
+      current = token;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current.trim()) chunks.push(current.trim());
+
+  document.body.removeChild(probe);
+  return chunks.length ? chunks : [text];
+}
+
+function useObituaryChunks(obituary: string, probeRef: React.RefObject<HTMLDivElement>): string[] {
+  const [chunks, setChunks] = useState<string[]>([obituary]);
+
+  useEffect(() => {
+    if (!obituary) return;
+
+    const measure = () => {
+      // probeRef is a hidden div with the same aspect-ratio as a Page but
+      // sized to match the *actual* viewport width so measurements are accurate
+      // on both desktop and mobile / QR view.
+      const probe = probeRef.current;
+      if (!probe) return;
+
+      const totalW = probe.offsetWidth;
+      const totalH = probe.offsetHeight;
+      if (!totalW || !totalH) return;
+
+  const contentW = totalW * (1 - 0.18 * 2);
+      const headingPx = 36 * 1.2 + 20;
+      // Matches tightPadding: pt-[12%] pb-[18%]
+const availableH = totalH * (1 - 0.12 - 0.18) - headingPx * 0.6;
+
+      const result = measureObituaryChunks(obituary, contentW, availableH);
+      setChunks(result);
+
+      console.log("probe", totalW, totalH, "contentW", contentW, "availableH", availableH, "lineH", 0.875 * 1.625 * 16, "fits", Math.floor(availableH / (0.875 * 1.625 * 16)));
+    };
+
+    
+    // Wait for layout so the probe has real dimensions
+    const raf = requestAnimationFrame(() => setTimeout(measure, 50));
+    return () => cancelAnimationFrame(raf);
+  }, [obituary, probeRef]);
+
+  return chunks;
+}
+
+
+// ── Shared OrderList — used in EVERY context (static, QR, preview) ────────────
+export const OrderList = ({
+  chunk,
+  chunkIdx,
+  accent,
+  ink,
+  soft,
+}: {
+  chunk: OrderItem[];
+  chunkIdx: number;
+  accent: string;
+  ink: string;
+  soft: string;
+}) => (
+  <>
+    <h2
+      className="font-serif text-3xl italic md:text-4xl"
+      style={{ color: `hsl(${accent})` }}
+    >
+      {chunkIdx === 0 ? "Order Of Service" : "Order Of Service (cont.)"}
+    </h2>
+    <ul className="mt-6 w-full max-w-md space-y-3 text-left">
+      {chunk.map((item) => (
+        <li key={item.id} className="flex flex-col gap-0.5">
+          <div className="flex items-center justify-between">
+            <span
+              className="font-mono text-xs tracking-wide"
+              style={{ color: `hsl(${accent})` }}
+            >
+              {item.time || ""}
+            </span>
+            {item.by && (
+              <span className="text-xs italic" style={{ color: `hsl(${soft})` }}>
+                {item.by}
+              </span>
+            )}
+          </div>
+          <span
+            className="font-medium uppercase tracking-wide text-sm md:text-base"
+            style={{ color: `hsl(${ink})` }}
+          >
+            {item.title}
+          </span>
+        </li>
+      ))}
+    </ul>
+  </>
+);
+
+// ── Page frame ────────────────────────────────────────────────────────────────
 export const Page = ({
   id,
   frame,
   paper,
   accent,
   children,
+  tightPadding,
 }: {
   id?: string;
   frame: string;
   paper: string;
   accent: string;
   children: React.ReactNode;
+  tightPadding?: boolean;
 }) => (
   <div
     id={id}
-    className="relative mx-auto w-full overflow-hidden rounded-md shadow-paper print:shadow-none"
-    style={{
-      aspectRatio: "3 / 4",
-      maxWidth: "880px",
-      background: `hsl(${paper})`,
-    }}
+   className="relative mx-auto w-full overflow-hidden rounded-md shadow-paper print:shadow-none"
+style={{ aspectRatio: "3 / 4", maxWidth: "880px", transform: "translateZ(0)", backfaceVisibility: "hidden" } as React.CSSProperties}
   >
     <div
       className="pointer-events-none absolute inset-3 rounded-sm"
@@ -57,49 +219,160 @@ export const Page = ({
       src={frame}
       alt=""
       aria-hidden
-      className="pointer-events-none absolute -left-[2%] -top-[2%] h-[50%] w-[50%] select-none object-contain"
+      crossOrigin="anonymous"
+      className="pointer-events-none absolute -left-[5%] -top-[5%] h-[38%] w-[38%] select-none object-contain"
     />
     <img
       src={crossDove}
       alt=""
       aria-hidden
+      crossOrigin="anonymous"
       className="pointer-events-none absolute right-[10%] top-[8%] h-[20%] w-auto select-none object-contain"
     />
     <img
       src={frame}
       alt=""
       aria-hidden
-      className="pointer-events-none absolute -bottom-[2%] -right-[2%] h-[50%] w-[50%] rotate-180 select-none object-contain"
+      crossOrigin="anonymous"
+      className="pointer-events-none absolute -bottom-[5%] -right-[5%] h-[38%] w-[38%] rotate-180 select-none object-contain"
     />
-    <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-[14%] py-[14%] text-center">
-      {children}
-    </div>
+<div className={`relative z-10 flex h-full w-full flex-col items-center justify-start overflow-hidden px-[18%] text-center ${tightPadding ? "pt-[12%] pb-[18%]" : "pt-[20%] pb-[30%]"}`} style={{ transform: "translateZ(0)" }}>
+    {children}
+</div>
   </div>
 );
 
-type OrderItem = { id: string; time?: string; title: string; by?: string };
+// ── Styled QR download ────────────────────────────────────────────────────────
+const downloadStyledQRCode = async (url: string, programName: string) => {
+  try {
+    const size = 600;
+    const qrCanvas = document.createElement("canvas");
+    await QRCode.toCanvas(qrCanvas, url, {
+      width: size,
+      margin: 2,
+      color: { dark: "#1a1a2e", light: "#fffef9" },
+      errorCorrectionLevel: "H",
+    });
 
+    const pad = 40;
+    const labelH = 80;
+    const out = document.createElement("canvas");
+    out.width = size + pad * 2;
+    out.height = size + pad * 2 + labelH;
+    const ctx = out.getContext("2d")!;
+
+    ctx.fillStyle = "#fffef9";
+    ctx.fillRect(0, 0, out.width, out.height);
+
+    ctx.strokeStyle = "rgba(181,125,42,0.35)";
+    ctx.lineWidth = 2;
+    const r = 20;
+    ctx.beginPath();
+    ctx.roundRect(8, 8, out.width - 16, out.height - 16, r);
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(181,125,42,0.15)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(14, 14, out.width - 28, out.height - 28, r - 4);
+    ctx.stroke();
+
+    ctx.drawImage(qrCanvas, pad, pad, size, size);
+
+    const logoSize = 72;
+    const cx = pad + size / 2;
+    const cy = pad + size / 2;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, logoSize / 2 + 8, 0, Math.PI * 2);
+    ctx.fillStyle = "#fffef9";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, logoSize / 2 + 8, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(181,125,42,0.5)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    await new Promise<void>((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        ctx.drawImage(img, cx - logoSize / 2, cy - logoSize / 2, logoSize, logoSize);
+        resolve();
+      };
+      img.onerror = () => resolve();
+      img.src = heartViewLogo;
+    });
+
+    const labelY = pad + size + 16;
+    ctx.fillStyle = "rgba(90,80,70,0.6)";
+    ctx.font = "500 13px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.letterSpacing = "0.08em";
+    ctx.fillText("SCAN TO VIEW PROGRAM", out.width / 2, labelY + 18);
+
+    ctx.fillStyle = "#2c2416";
+    ctx.font = "600 18px Georgia, serif";
+    ctx.fillText(programName, out.width / 2, labelY + 44);
+
+    ctx.fillStyle = "rgba(181,125,42,0.7)";
+    ctx.font = "italic 12px Georgia, serif";
+    ctx.fillText("heartView", out.width / 2, labelY + 66);
+
+    const link = document.createElement("a");
+    link.href = out.toDataURL("image/png");
+    link.download = `${programName}-qr-code.png`;
+    link.click();
+    toast.success("QR code downloaded");
+  } catch (error) {
+    console.error(error);
+    toast.error("Failed to generate QR code");
+  }
+};
+
+// ── Main component ────────────────────────────────────────────────────────────
 const ProgramView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isQrView = searchParams.get("qr") === "true";
+  const [currentUser, setCurrentUser] = useState<User | null | undefined>(undefined);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setCurrentUser(u));
+    return () => unsub();
+  }, []);
+
   const [program, setProgram] = useState<Program | null | undefined>(undefined);
   const [copied, setCopied] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [direction, setDirection] = useState<"left" | "right" | null>(null);
   const [animating, setAnimating] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
+const [pdfLoading, setPdfLoading] = useState(false);
+  useInactivityLogout();
+
+  const obituaryProbeRef = useRef<HTMLDivElement>(null);
+  const obituaryChunks = useObituaryChunks(program?.obituary ?? "", obituaryProbeRef);
+
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
   const [editItems, setEditItems] = useState<OrderItem[]>([]);
   const [saving, setSaving] = useState(false);
 
+  const LogoLink = () => (
+    <Link to="/" className="flex items-center gap-2">
+      <img src={heartViewLogo} alt="HeartView" className="h-7 w-7" />
+      <span className="font-semibold text-ink">
+        heart<span className="text-terracotta">View</span>
+      </span>
+    </Link>
+  );
+
   useEffect(() => {
     if (!id) return;
-
     const docRef = doc(db, "programs", id);
     const unsubscribe = onSnapshot(
       docRef,
@@ -117,18 +390,66 @@ const ProgramView = () => {
         setProgram(null);
       }
     );
-
     return () => unsubscribe();
   }, [id]);
 
+  // ── Generate & save share preview image (runs once, right after creation) ──
+useEffect(() => {
+  const generateShareImage = async () => {
+    if (!id || !program) return;
+    if ((program as any).shareImageUrl) return; // already generated
+    if (!showShare) return; // only run in the "just created" window
+
+    // Wait a tick so the cover Page has fully rendered with images loaded
+    await new Promise((r) => setTimeout(r, 800));
+
+    const el = document.getElementById("pdf-page-cover");
+    if (!el) return;
+
+    try {
+      const { default: html2canvas } = await import("html2canvas");
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+      });
+
+      const blob: Blob | null = await new Promise((resolve) =>
+        canvas.toBlob(resolve, "image/png")
+      );
+      if (!blob) return;
+
+      const imgRef = storageRef(storage, `share-images/${id}.png`);
+      await uploadBytes(imgRef, blob);
+      const url = await getDownloadURL(imgRef);
+
+      await updateDoc(doc(db, "programs", id), { shareImageUrl: url });
+    } catch (err) {
+      console.error("Failed to generate share image:", err);
+    }
+  };
+
+  generateShareImage();
+}, [id, program, showShare]);
+
   useEffect(() => {
-    if (program) document.title = `In memory of ${program.name} — Eventify`;
+    if (program) document.title = `In memory of ${program.name} — HeartView`;
   }, [program]);
+
+  const explicitEdit = searchParams.get("edit") === "true";
+  const canEdit =
+    explicitEdit ||
+    (!!currentUser && !!program && (program as any).userId === currentUser.uid);
 
   const openEditor = () => {
     if (!program) return;
     setEditItems(program.order.map((item) => ({ ...item })));
     setIsEditing(true);
+    setTimeout(() => {
+      const el = document.getElementById("pdf-page-order");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
   };
 
   const cancelEdit = () => {
@@ -146,23 +467,48 @@ const ProgramView = () => {
     setEditItems((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const addItem = () => {
-    setEditItems((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), time: "", title: "", by: "" },
-    ]);
+const addItem = () => {
+  const newItem = {
+    id: crypto.randomUUID(),
+    time: "",
+    title: "",
+    by: "",
   };
+
+  setEditItems((prev) => [...prev, newItem]);
+
+  setTimeout(() => {
+    const container = document.getElementById(
+      "order-service-editor"
+    );
+
+    if (container) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  }, 100);
+};
 
   const saveOrder = async () => {
     if (!id) return;
+    const cleanItems = editItems.filter((i) => i.title.trim());
+    if (cleanItems.length === 0) {
+      toast.error("Please add at least one item");
+      return;
+    }
     setSaving(true);
     try {
-      await updateDoc(doc(db, "programs", id), { order: editItems });
-      toast.success("Order of service updated");
+      await updateDoc(doc(db, "programs", id), { order: cleanItems });
       setIsEditing(false);
+      toast.success("✓ Order of service updated successfully", {
+        description: `${cleanItems.length} item${cleanItems.length !== 1 ? "s" : ""} saved.`,
+        duration: 4000,
+      });
     } catch (err) {
       console.error(err);
-      toast.error("Failed to save changes");
+      toast.error("Could not save changes — please try again");
     } finally {
       setSaving(false);
     }
@@ -170,6 +516,9 @@ const ProgramView = () => {
 
   const downloadPdf = async () => {
     if (!program) return;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const iosPdfWindow = isIOS ? window.open("about:blank", "_blank") : null;
     setPdfLoading(true);
     try {
       const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
@@ -177,24 +526,68 @@ const ProgramView = () => {
         import("html2canvas"),
       ]);
 
-      const pageIds = ["pdf-page-cover", "pdf-page-order"];
-      if (program.obituary) pageIds.push("pdf-page-obituary");
-      if (program.voteOfThanks) pageIds.push("pdf-page-vote");
+      // Collect all order page IDs — supports multi-page order
+      const orderChunks = chunkOrderItems(program.order);
+      const orderPageIds = orderChunks.map((_, i) =>
+        i === 0 ? "pdf-page-order" : `pdf-page-order-${i}`
+      );
+
+      const pageIds = ["pdf-page-cover", ...orderPageIds];
+if (program.obituary) {
+        obituaryChunks.forEach((_, i) => {
+          pageIds.push(i === 0 ? "pdf-page-obituary" : `pdf-page-obituary-${i}`);
+        });
+      }
+            if (program.voteOfThanks) pageIds.push("pdf-page-vote");
       if (program.gallery.length > 0) pageIds.push("pdf-page-gallery");
 
       const canvases: HTMLCanvasElement[] = [];
       for (const pageId of pageIds) {
         const el = document.getElementById(pageId);
         if (!el) continue;
-        const canvas = await html2canvas(el, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: null,
-          width: el.offsetWidth,
-          height: el.offsetHeight,
-          scrollX: 0,
-          scrollY: -window.scrollY,
+const canvas = await html2canvas(el, {
+  scale: 2,
+  useCORS: true,
+  allowTaint: false,
+  backgroundColor: "#ffffff",
+  scrollX: -window.scrollX,
+  scrollY: -window.scrollY,
+  logging: false,
+  imageTimeout: 0,
+  onclone: (_clonedDoc, clonedEl) => {
+  clonedEl.querySelectorAll("img").forEach((img: HTMLImageElement) => {
+    img.style.display = "block";
+    img.style.visibility = "visible";
+    img.crossOrigin = "anonymous";
+  });
+
+  // html2canvas ignores CSS object-fit, so replace tagged images
+  // with pre-cropped canvases so they render correctly in the PDF.
+  clonedEl.querySelectorAll<HTMLImageElement>("img[data-cover]").forEach((img) => {
+    const w = img.offsetWidth || img.clientWidth;
+    const h = img.offsetHeight || img.clientHeight;
+    if (!w || !h) return;
+
+    const cvs = document.createElement("canvas");
+    cvs.width = w;
+    cvs.height = h;
+    const ctx2 = cvs.getContext("2d");
+    if (!ctx2) return;
+
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    const scale = Math.max(w / iw, h / ih);
+    const sw = w / scale;
+    const sh = h / scale;
+    const sx = (iw - sw) / 2;
+    const sy = (ih - sh) / 2;
+    ctx2.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+
+    cvs.style.cssText = img.style.cssText;
+    cvs.style.borderRadius = getComputedStyle(img).borderRadius;
+    img.parentNode?.replaceChild(cvs, img);
+  });
+},
         });
         canvases.push(canvas);
       }
@@ -204,31 +597,85 @@ const ProgramView = () => {
         return;
       }
 
-      const pdfW = canvases[0].width / 2;
-      const pdfH = canvases[0].height / 2;
+  // Use A4 proportions in points (595 × 794 pt)
+      const PDF_W = 595;
+      const PDF_H = 794;
 
       const pdf = new jsPDF({
         orientation: "portrait",
-        unit: "px",
-        format: [pdfW, pdfH],
+        unit: "pt",
+        format: "a4",
       });
 
       canvases.forEach((canvas, i) => {
-        if (i > 0) pdf.addPage([pdfW, pdfH]);
+        if (i > 0) pdf.addPage();
         const imgData = canvas.toDataURL("image/jpeg", 0.98);
-        pdf.addImage(imgData, "JPEG", 0, 0, pdfW, pdfH);
+        // Fit canvas into A4 preserving aspect ratio, centered
+        const canvasAspect = canvas.width / canvas.height;
+        const pageAspect = PDF_W / PDF_H;
+        let drawW = PDF_W;
+        let drawH = PDF_H;
+        let offsetX = 0;
+        let offsetY = 0;
+        if (canvasAspect > pageAspect) {
+          drawH = PDF_W / canvasAspect;
+          offsetY = (PDF_H - drawH) / 2;
+        } else {
+          drawW = PDF_H * canvasAspect;
+          offsetX = (PDF_W - drawW) / 2;
+        }
+        pdf.addImage(imgData, "JPEG", offsetX, offsetY, drawW, drawH);
       });
+      
+      if (isIOS) {
+        const blob = pdf.output("blob");
+        const blobUrl = URL.createObjectURL(blob);
+        const fileName = `${program.name}-program.pdf`;
+        const shareNavigator = navigator as Navigator & {
+          canShare?: (data: { files: File[] }) => boolean;
+          share?: (data: { files: File[]; title?: string }) => Promise<void>;
+        };
+        const pdfFile = new File([blob], fileName, { type: "application/pdf" });
 
-      pdf.save(`${program.name}-program.pdf`);
-      toast.success("PDF downloaded");
+        if (shareNavigator.share && shareNavigator.canShare?.({ files: [pdfFile] })) {
+          iosPdfWindow?.close();
+          try {
+            await shareNavigator.share({
+              files: [pdfFile],
+              title: fileName,
+            });
+            toast.success("PDF ready to save");
+          } catch (shareError) {
+            if ((shareError as DOMException).name === "AbortError") {
+              toast.info("PDF sharing canceled");
+            } else {
+              window.location.href = blobUrl;
+              toast.success("PDF opened — tap Share, then Save to Files");
+            }
+          }
+        } else if (iosPdfWindow) {
+          iosPdfWindow.location.href = blobUrl;
+          toast.success("PDF opened — tap Share, then Save to Files");
+        } else {
+          window.location.href = blobUrl;
+          toast.success("PDF opened — tap Share, then Save to Files");
+        }
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+      } else {
+        pdf.save(`${program.name}-program.pdf`);
+        toast.success("PDF downloaded");
+      }
+
     } catch (err) {
       console.error(err);
+      iosPdfWindow?.close();
       toast.error("Failed to generate PDF");
     } finally {
       setPdfLoading(false);
     }
   };
 
+  // ── Loading / not found ───────────────────────────────────────────────────
   if (program === undefined) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-warm text-whisper">
@@ -251,11 +698,12 @@ const ProgramView = () => {
   }
 
   const theme = getTheme(program.themeId);
-  const url = `${window.location.origin}/program/${id}?qr=true`;
+  const shareUrl = `${window.location.origin}/program/${program.id || id}`;
+  const qrUrl = `${shareUrl}?qr=true`;
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(qrUrl);
       setCopied(true);
       toast.success("Link copied");
       setTimeout(() => setCopied(false), 2000);
@@ -264,174 +712,113 @@ const ProgramView = () => {
     }
   };
 
-  const downloadQRCode = async () => {
-    try {
-      const qrDataUrl = await QRCode.toDataURL(url, { width: 500, margin: 2 });
-      const link = document.createElement("a");
-      link.href = qrDataUrl;
-      link.download = `${program.name}-qr-code.png`;
-      link.click();
-      toast.success("QR code downloaded");
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to generate QR code");
-    }
-  };
-
   const year = (d: string) => (d ? new Date(d).getFullYear() : "");
   const accent = theme.accent;
   const ink = theme.ink;
   const soft = theme.soft;
 
-  // ── Name order: given names (first names) first, surname last ────────────────
   const parts = program.name.trim().split(/\s+/);
   const givenNames = parts.length > 1 ? parts.slice(0, -1).join(" ") : program.name;
   const lastName = parts.length > 1 ? parts[parts.length - 1] : "";
 
-  // ── Build page list for QR book mode ────────────────────────────────────────
+ const obituaryFontSize = "0.875rem";
+
+  // ── Cover content (reused in both QR and static views) ───────────────────
+  const coverContent = (
+    <>
+      <p className="font-serif text-base italic md:text-xl" style={{ color: `hsl(${accent})` }}>
+        In loving memory of
+      </p>
+      {program.profilePhoto && (
+        <div
+         className="mx-auto mt-3 shrink-0 overflow-hidden border-[3px] shadow-soft"
+style={{ width: "112px", height: "140px", borderRadius: "50%", borderColor: `hsl(${accent} / 0.5)` }}
+        >
+          <img
+  src={program.profilePhoto}
+  alt={program.name}
+  data-cover=""
+  className="h-full w-full object-cover"
+  crossOrigin="anonymous"
+  style={{ objectFit: "cover", objectPosition: "50% 50%" }}
+/>
+        </div>
+      )}
+      <h1
+        className="mt-3 font-serif text-2xl uppercase tracking-wide md:text-4xl"
+        style={{ color: `hsl(${ink})` }}
+      >
+        {givenNames}
+      </h1>
+      {lastName && (
+        <p className="mt-1 font-serif text-xl italic md:text-2xl" style={{ color: `hsl(${accent})` }}>
+          {lastName}
+        </p>
+      )}
+      <p className="mt-3 font-serif text-xs italic md:text-sm" style={{ color: `hsl(${soft})` }}>
+        {formatDate(program.dob)} — {formatDate(program.dop)}
+      </p>
+      {program.tribute && (
+        <p className="mt-2 font-serif text-sm italic md:text-base" style={{ color: `hsl(${soft})` }}>
+          {program.tribute}
+        </p>
+      )}
+    </>
+  );
+
+  // ── Build QR page list ────────────────────────────────────────────────────
   type PageDef = { key: string; content: React.ReactNode };
   const pages: PageDef[] = [];
 
-  pages.push({
-    key: "cover",
-    content: (
-      <>
-        <p
-          className="font-serif text-xl italic md:text-2xl"
-          style={{ color: `hsl(${accent})` }}
-        >
-          In loving memory of
-        </p>
-        {program.profilePhoto && (
-          <div
-            className="mx-auto mt-5 h-24 w-24 overflow-hidden rounded-full border-[3px] shadow-soft md:h-28 md:w-28"
-            style={{ borderColor: `hsl(${accent} / 0.5)` }}
-          >
-            <img
-              src={program.profilePhoto}
-              alt={program.name}
-              className="h-full w-full object-cover"
-            />
-          </div>
-        )}
-        {/* Given names displayed prominently first, surname below in italic */}
-        <h1
-          className="mt-6 font-serif text-3xl uppercase tracking-wide md:text-5xl"
-          style={{ color: `hsl(${ink})` }}
-        >
-          {givenNames}
-        </h1>
-        {lastName && (
-          <p
-            className="mt-2 font-serif text-2xl italic md:text-3xl"
-            style={{ color: `hsl(${accent})` }}
-          >
-            {lastName}
-          </p>
-        )}
-        <p
-          className="mt-6 font-serif text-sm italic md:text-base"
-          style={{ color: `hsl(${soft})` }}
-        >
-          {formatDate(program.dob)} — {formatDate(program.dop)}
-        </p>
-        {program.subtitle && (
-          <p
-            className="mt-5 font-serif text-base italic md:text-lg"
-            style={{ color: `hsl(${soft})` }}
-          >
-            {program.subtitle}
-          </p>
-        )}
-        {!program.subtitle && program.tribute && (
-          <p
-            className="mt-5 font-serif text-base italic md:text-lg"
-            style={{ color: `hsl(${soft})` }}
-          >
-            {program.tribute}
-          </p>
-        )}
-      </>
-    ),
-  });
+  pages.push({ key: "cover", content: coverContent });
 
-  pages.push({
-    key: "order",
-    content: (
-      <>
-        <h2
-          className="font-serif text-3xl italic md:text-4xl"
-          style={{ color: `hsl(${accent})` }}
-        >
-          Order Of Service
-        </h2>
-        <ul className="mt-6 w-full max-w-md space-y-2.5 text-left">
-          {program.order.map((item) => (
-            <li
-              key={item.id}
-              className="grid grid-cols-[60px_1fr_auto] items-baseline gap-3 text-sm md:text-base"
-            >
-              <span
-                className="font-mono text-xs tracking-wide"
-                style={{ color: `hsl(${accent})` }}
-              >
-                {item.time || ""}
-              </span>
-              <span
-                className="font-medium uppercase tracking-wide"
-                style={{ color: `hsl(${ink})` }}
-              >
-                {item.title}
-              </span>
-              <span
-                className="italic text-right"
-                style={{ color: `hsl(${soft})` }}
-              >
-                {item.by || ""}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </>
-    ),
-  });
-
-  if (program.obituary) {
+  // Paginated order of service
+  chunkOrderItems(program.order).forEach((chunk, chunkIdx) => {
     pages.push({
-      key: "obituary",
+      key: `order-${chunkIdx}`,
       content: (
-        <>
-          <h2
-            className="font-serif text-3xl italic md:text-4xl"
-            style={{ color: `hsl(${accent})` }}
-          >
-            Obituary
-          </h2>
-          <div
-            className="mt-5 max-h-full overflow-hidden whitespace-pre-line text-center text-sm leading-relaxed md:text-base"
-            style={{ color: `hsl(${ink})` }}
-          >
-            {program.obituary}
-          </div>
-        </>
+        <OrderList
+          chunk={chunk}
+          chunkIdx={chunkIdx}
+          accent={accent}
+          ink={ink}
+          soft={soft}
+        />
       ),
     });
-  }
+  });
 
+if (program.obituary) {
+    obituaryChunks.forEach((chunk, chunkIdx) => {
+      pages.push({
+        key: `obituary-${chunkIdx}`,
+        content: (
+          <>
+            <h2 className="font-serif text-3xl italic md:text-4xl" style={{ color: `hsl(${accent})` }}>
+              {chunkIdx === 0 ? "Obituary" : "Obituary (cont.)"}
+            </h2>
+            <div
+            className="mt-5 w-full whitespace-pre-line text-left leading-relaxed"
+              style={{ color: `hsl(${ink})`, fontSize: obituaryFontSize }}
+            >
+              {chunk}
+            </div>
+          </>
+        ),
+      });
+    });
+  }
   if (program.voteOfThanks) {
     pages.push({
       key: "vote",
       content: (
         <>
-          <h2
-            className="font-serif text-3xl italic md:text-4xl"
-            style={{ color: `hsl(${accent})` }}
-          >
+          <h2 className="font-serif text-3xl italic md:text-4xl" style={{ color: `hsl(${accent})` }}>
             Vote Of Thanks
           </h2>
           <p
-            className="mt-6 max-w-md whitespace-pre-line text-center text-sm leading-relaxed md:text-base"
-            style={{ color: `hsl(${soft})` }}
+            className="mt-5 w-full whitespace-pre-line text-left leading-relaxed"
+            style={{ color: `hsl(${ink})`, fontSize: obituaryFontSize }}
           >
             {program.voteOfThanks}
           </p>
@@ -445,24 +832,16 @@ const ProgramView = () => {
       key: "gallery",
       content: (
         <>
-          <h2
-            className="font-serif text-3xl italic md:text-4xl"
-            style={{ color: `hsl(${accent})` }}
-          >
+          <h2 className="font-serif text-3xl italic md:text-4xl" style={{ color: `hsl(${accent})` }}>
             Cherished Moments
           </h2>
-          <div className="mt-6 grid grid-cols-2 gap-3">
+          <div
+            className="mt-6 grid grid-cols-2 gap-3"
+            style={{ gridTemplateColumns: "repeat(2, 1fr)" }}
+          >
             {program.gallery.slice(0, 4).map((src, i) => (
-              <div
-                key={i}
-                className="aspect-square overflow-hidden rounded-lg shadow-soft"
-              >
-                <img
-                  src={src}
-                  alt=""
-                  loading="lazy"
-                  className="h-full w-full object-cover"
-                />
+              <div key={i} className="aspect-square overflow-hidden rounded-lg shadow-soft">
+                <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" />
               </div>
             ))}
           </div>
@@ -482,10 +861,17 @@ const ProgramView = () => {
     }, 300);
   };
 
-  // ── QR / Book view ──────────────────────────────────────────────────────────
-  if (isQrView) {
+  // ── QR / book view ────────────────────────────────────────────────────────
+ if (isQrView) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-warm px-4 py-8">
+        {/* Probe must be present in QR view too for measurement to work */}
+    <div
+          ref={obituaryProbeRef}
+          aria-hidden
+          className="pointer-events-none fixed opacity-0"
+          style={{ aspectRatio: "3 / 4", width: "min(384px, 100vw - 2rem)", top: "-9999px", left: "-9999px" }}
+        />
         <style>{`
           @keyframes slideInFromRight {
             from { transform: translateX(60px); opacity: 0; }
@@ -511,6 +897,7 @@ const ProgramView = () => {
             }
           >
             <Page frame={theme.frame} paper={theme.paper} accent={accent}>
+              {/* Nav arrows rendered inside the page frame */}
               <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-between px-3">
                 <button
                   onClick={() => goToPage(currentPage - 1)}
@@ -544,6 +931,7 @@ const ProgramView = () => {
           </div>
         </div>
 
+        {/* Dot indicators */}
         <div className="mt-6 flex items-center gap-2">
           {pages.map((_, i) => (
             <button
@@ -554,18 +942,13 @@ const ProgramView = () => {
               style={{
                 width: i === currentPage ? "20px" : "8px",
                 background:
-                  i === currentPage
-                    ? `hsl(${accent})`
-                    : `hsl(${accent} / 0.3)`,
+                  i === currentPage ? `hsl(${accent})` : `hsl(${accent} / 0.3)`,
               }}
             />
           ))}
         </div>
 
-        <p
-          className="mt-3 font-serif text-sm italic"
-          style={{ color: `hsl(${soft})` }}
-        >
+        <p className="mt-3 font-serif text-sm italic" style={{ color: `hsl(${soft})` }}>
           Page {currentPage + 1} of {pages.length}
         </p>
 
@@ -578,331 +961,261 @@ const ProgramView = () => {
     );
   }
 
-  // ── Normal view ─────────────────────────────────────────────────────────────
+  // ── Normal (desktop / print) view ─────────────────────────────────────────
+  const orderChunks = chunkOrderItems(program.order);
+
   return (
     <div className="min-h-screen bg-gradient-warm">
       {showShare && (
         <div className="border-b border-gold/20 bg-cream/60 print:hidden">
           <div className="container flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="font-serif text-lg text-ink">
-                Your program is ready to share
-              </p>
+              <p className="font-serif text-lg text-ink">Your program is ready to share</p>
               <p className="text-sm text-whisper">
                 Anyone with this link can view it — no login needed.
               </p>
             </div>
             <div className="flex items-center gap-2">
               <code className="hidden max-w-[260px] truncate rounded bg-background px-3 py-2 text-xs text-whisper md:inline-block">
-                {url}
+                {qrUrl}
               </code>
-              <Button
-                onClick={copy}
-                className="bg-ink text-primary-foreground hover:bg-ink/90"
-              >
-                {copied ? (
-                  <Check className="mr-2 h-4 w-4" />
-                ) : (
-                  <Copy className="mr-2 h-4 w-4" />
-                )}
-                {copied ? "Copied" : "Copy link"}
-              </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Top nav — "Back" goes to /create (Step 1 theme picker) */}
-      <header className="container flex items-center justify-between py-5 print:hidden">
-        <button
-          onClick={() => navigate("/create")}
-          className="flex items-center gap-2 text-sm text-whisper hover:text-gold transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={downloadPdf}
-            disabled={pdfLoading}
+      <header className="container flex flex-col items-start gap-3 py-5 print:hidden md:flex-row md:items-center md:justify-between">
+        <div className="flex w-full items-center justify-between md:w-auto md:gap-12">
+          <BackButton
+            fallback="/create"
+            className="text-sm text-whisper transition-colors hover:text-gold"
           >
-            <Printer className="mr-2 h-4 w-4" />
-            {pdfLoading ? "Generating…" : "Download PDF"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={downloadQRCode}
-            className="border-gold/40"
-          >
-            Download QR
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={copy}
-            className="border-gold/40"
-          >
-            {copied ? (
-              <Check className="mr-2 h-4 w-4" />
-            ) : (
-              <Copy className="mr-2 h-4 w-4" />
+            Back
+          </BackButton>
+          <LogoLink />
+        </div>
+
+        <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
+          <div className="flex gap-2">
+            {canEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openEditor}
+                className="border-gold/40"
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit order
+              </Button>
             )}
-            Share
-          </Button>
+            <Button variant="ghost" size="sm" onClick={downloadPdf} disabled={pdfLoading}>
+              <Download className="mr-2 h-4 w-4" />
+              {pdfLoading ? "Generating…" : "Download PDF"}
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadStyledQRCode(qrUrl, program.name)}
+              className="border-gold/40"
+            >
+              <QrCodeIcon className="mr-2 h-4 w-4" />
+              Download QR
+            </Button>
+            <Button variant="outline" size="sm" onClick={copy} className="border-gold/40">
+              {copied ? (
+                <Check className="mr-2 h-4 w-4" />
+              ) : (
+                <Share2 className="mr-2 h-4 w-4" />
+              )}
+              Share
+            </Button>
+          </div>
         </div>
       </header>
 
+  {/* Invisible probe — measures available obituary content height */}
+    <div
+        ref={obituaryProbeRef}
+        aria-hidden
+        className="pointer-events-none fixed -left-[9999px] -top-[9999px] opacity-0"
+        style={{ aspectRatio: "3 / 4", width: "min(880px, 100vw - 2rem)" }}
+      />
+
       <article className="container max-w-5xl space-y-10 pb-20 fade-in">
+
         {/* PAGE 1 — COVER */}
-        <Page
-          id="pdf-page-cover"
-          frame={theme.frame}
-          paper={theme.paper}
-          accent={accent}
-        >
-          <p
-            className="font-serif text-xl italic md:text-2xl"
-            style={{ color: `hsl(${accent})` }}
-          >
-            In loving memory of
-          </p>
-          {program.profilePhoto && (
-            <div
-              className="mx-auto mt-5 h-24 w-24 overflow-hidden rounded-full border-[3px] shadow-soft md:h-28 md:w-28"
-              style={{ borderColor: `hsl(${accent} / 0.5)` }}
-            >
-              <img
-                src={program.profilePhoto}
-                alt={program.name}
-                className="h-full w-full object-cover"
-              />
-            </div>
-          )}
-          {/* Given names (first names) displayed first, surname below in italic */}
-          <h1
-            className="mt-6 font-serif text-3xl uppercase tracking-wide md:text-5xl"
-            style={{ color: `hsl(${ink})` }}
-          >
-            {givenNames}
-          </h1>
-          {lastName && (
-            <p
-              className="mt-2 font-serif text-2xl italic md:text-3xl"
-              style={{ color: `hsl(${accent})` }}
-            >
-              {lastName}
-            </p>
-          )}
-          <p
-            className="mt-6 font-serif text-sm italic md:text-base"
-            style={{ color: `hsl(${soft})` }}
-          >
-            {formatDate(program.dob)} — {formatDate(program.dop)}
-          </p>
-          {program.subtitle && (
-            <p
-              className="mt-5 font-serif text-base italic md:text-lg"
-              style={{ color: `hsl(${soft})` }}
-            >
-              {program.subtitle}
-            </p>
-          )}
-          {!program.subtitle && program.tribute && (
-            <p
-              className="mt-5 font-serif text-base italic md:text-lg"
-              style={{ color: `hsl(${soft})` }}
-            >
-              {program.tribute}
-            </p>
-          )}
+        <Page id="pdf-page-cover" frame={theme.frame} paper={theme.paper} accent={accent}>
+          {coverContent}
         </Page>
 
-        {/* PAGE 2 — ORDER OF SERVICE */}
-        <Page
-          id="pdf-page-order"
-          frame={theme.frame}
-          paper={theme.paper}
-          accent={accent}
-        >
-          {isEditing ? (
-            /* ── EDIT MODE ─────────────────────────────────────────────────── */
-            <div className="flex w-full flex-col gap-3 overflow-y-auto">
-              <div className="flex items-center justify-between">
-                <h2
-                  className="font-serif text-2xl italic"
-                  style={{ color: `hsl(${accent})` }}
-                >
-                  Order Of Service
-                </h2>
-                <button
-                  onClick={cancelEdit}
-                  aria-label="Cancel editing"
-                  className="rounded-full p-1 transition hover:opacity-60"
-                  style={{ color: `hsl(${soft})` }}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                {editItems.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-1.5 rounded-md px-2 py-1.5"
-                    style={{
-                      background: `hsl(${accent} / 0.06)`,
-                      border: `1px solid hsl(${accent} / 0.15)`,
-                    }}
-                  >
-                    <input
-                      value={item.time ?? ""}
-                      onChange={(e) =>
-                        updateItem(index, "time", e.target.value)
-                      }
-                      placeholder="Time"
-                      className="w-14 shrink-0 rounded bg-transparent px-1 py-0.5 text-center font-mono text-xs outline-none focus:ring-1"
-                      style={{ color: `hsl(${accent})` }}
-                    />
-                    <input
-                      value={item.title}
-                      onChange={(e) =>
-                        updateItem(index, "title", e.target.value)
-                      }
-                      placeholder="Title"
-                      className="min-w-0 flex-1 rounded bg-transparent px-1 py-0.5 text-xs font-medium uppercase tracking-wide outline-none focus:ring-1"
-                      style={{ color: `hsl(${ink})` }}
-                    />
-                    <input
-                      value={item.by ?? ""}
-                      onChange={(e) => updateItem(index, "by", e.target.value)}
-                      placeholder="By"
-                      className="w-20 shrink-0 rounded bg-transparent px-1 py-0.5 text-right text-xs italic outline-none focus:ring-1"
-                      style={{ color: `hsl(${soft})` }}
-                    />
-                    <button
-                      onClick={() => deleteItem(index)}
-                      aria-label="Delete item"
-                      className="shrink-0 rounded p-0.5 transition hover:opacity-60"
-                      style={{ color: `hsl(${soft})` }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                onClick={addItem}
-                className="flex items-center gap-1.5 self-start rounded-md px-2 py-1 text-xs transition hover:opacity-70"
-                style={{
-                  color: `hsl(${accent})`,
-                  border: `1px dashed hsl(${accent} / 0.4)`,
-                }}
-              >
-                <Plus className="h-3.5 w-3.5" /> Add item
-              </button>
-
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  onClick={cancelEdit}
-                  className="rounded-md px-3 py-1.5 text-xs transition hover:opacity-60"
-                  style={{ color: `hsl(${soft})` }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={saveOrder}
-                  disabled={saving}
-                  className="rounded-md px-4 py-1.5 text-xs font-medium transition hover:opacity-80 disabled:opacity-50"
-                  style={{
-                    background: `hsl(${accent})`,
-                    color: `hsl(${theme.paper})`,
-                  }}
-                >
-                  {saving ? "Saving…" : "Save"}
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* ── VIEW MODE ─────────────────────────────────────────────────── */
-            <>
-              <div className="flex items-center gap-2">
-                <h2
-                  className="font-serif text-3xl italic md:text-4xl"
-                  style={{ color: `hsl(${accent})` }}
-                >
-                  Order Of Service
-                </h2>
-                <button
-                  onClick={openEditor}
-                  aria-label="Edit order of service"
-                  className="print:hidden rounded-full p-1.5 transition hover:opacity-60"
-                  style={{
-                    color: `hsl(${accent})`,
-                    background: `hsl(${accent} / 0.08)`,
-                  }}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-              </div>
-
-              <ul className="mt-6 w-full max-w-md space-y-2.5 text-left">
-                {program.order.map((item) => (
-                  <li
-                    key={item.id}
-                    className="grid grid-cols-[60px_1fr_auto] items-baseline gap-3 text-sm md:text-base"
-                  >
-                    <span
-                      className="font-mono text-xs tracking-wide"
-                      style={{ color: `hsl(${accent})` }}
-                    >
-                      {item.time || ""}
-                    </span>
-                    <span
-                      className="font-medium uppercase tracking-wide"
-                      style={{ color: `hsl(${ink})` }}
-                    >
-                      {item.title}
-                    </span>
-                    <span
-                      className="italic text-right"
-                      style={{ color: `hsl(${soft})` }}
-                    >
-                      {item.by || ""}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </Page>
-
-        {/* PAGE 3 — OBITUARY */}
-        {program.obituary && (
+        {/* PAGE(S) — ORDER OF SERVICE (auto-paginated) */}
+        {orderChunks.map((chunk, chunkIdx) => (
           <Page
-            id="pdf-page-obituary"
+            key={`order-${chunkIdx}`}
+            id={chunkIdx === 0 ? "pdf-page-order" : `pdf-page-order-${chunkIdx}`}
             frame={theme.frame}
             paper={theme.paper}
             accent={accent}
+            tightPadding
+          >
+            {/* Edit UI only shown on the first order page */}
+            {chunkIdx === 0 && isEditing ? (
+              <div className="flex w-full flex-col gap-3 overflow-visible">
+                <div className="flex items-center justify-between">
+                  <h2
+                    className="font-serif text-2xl italic"
+                    style={{ color: `hsl(${accent})` }}
+                  >
+                    Order Of Service
+                  </h2>
+                  <button
+                    onClick={cancelEdit}
+                    aria-label="Cancel editing"
+                    className="rounded-full p-1 transition hover:opacity-60"
+                    style={{ color: `hsl(${soft})` }}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+<div
+  className="flex flex-col gap-2 overflow-y-auto pr-2"
+  style={{
+    maxHeight: window.innerWidth < 768 ? "180px" : "420px",
+  }}
+>                  {editItems.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className="flex flex-col gap-1.5 rounded-md px-3 py-2"
+                      style={{
+                        background: `hsl(${accent} / 0.06)`,
+                        border: `1px solid hsl(${accent} / 0.2)`,
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="time"
+                          value={item.time ?? ""}
+                          onChange={(e) => updateItem(index, "time", e.target.value)}
+                          className="flex-1 rounded border px-2 py-1 font-mono text-xs outline-none focus:ring-1"
+                          style={{
+                            color: `hsl(${accent})`,
+                            borderColor: `hsl(${accent} / 0.3)`,
+                            background: `hsl(${accent} / 0.04)`,
+                          }}
+                        />
+                        <button
+                          onClick={() => deleteItem(index)}
+                          aria-label="Delete item"
+                          className="shrink-0 rounded p-1 transition hover:opacity-60"
+                          style={{ color: `hsl(${soft})` }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <input
+                        value={item.title}
+                        onChange={(e) => updateItem(index, "title", e.target.value)}
+                        placeholder="e.g. Opening & Welcome"
+                        className="w-full rounded border px-2 py-1.5 text-xs font-medium uppercase tracking-wide outline-none focus:ring-1"
+                        style={{
+                          color: `hsl(${ink})`,
+                          borderColor: `hsl(${accent} / 0.3)`,
+                          background: `hsl(${accent} / 0.04)`,
+                        }}
+                      />
+                      <input
+                        value={item.by ?? ""}
+                        onChange={(e) => updateItem(index, "by", e.target.value)}
+                        placeholder="Led by (optional)"
+                        className="w-full rounded border px-2 py-1 text-xs italic outline-none focus:ring-1"
+                        style={{
+                          color: `hsl(${soft})`,
+                          borderColor: `hsl(${accent} / 0.2)`,
+                          background: `hsl(${accent} / 0.04)`,
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={addItem}
+                  className="flex items-center gap-1.5 self-start rounded-md px-2 py-1 text-xs transition hover:opacity-70"
+                  style={{
+                    color: `hsl(${accent})`,
+                    border: `1px dashed hsl(${accent} / 0.4)`,
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add item
+                </button>
+
+<div
+  className="sticky bottom-0 flex justify-end gap-2 pt-2 pb-2"
+  style={{
+    background: `hsl(${theme.paper})`,
+  }}
+>                  <button
+                    onClick={cancelEdit}
+                    className="rounded-md px-3 py-1.5 text-xs transition hover:opacity-60"
+                    style={{ color: `hsl(${soft})` }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveOrder}
+                    disabled={saving}
+                    className="rounded-md px-4 py-1.5 text-xs font-medium transition hover:opacity-80 disabled:opacity-50"
+                    style={{
+                      background: `hsl(${accent})`,
+                      color: `hsl(${theme.paper})`,
+                    }}
+                  >
+                    {saving ? "Saving…" : "Save changes"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <OrderList
+                chunk={chunk}
+                chunkIdx={chunkIdx}
+                accent={accent}
+                ink={ink}
+                soft={soft}
+              />
+            )}
+          </Page>
+        ))}
+
+        {/* PAGE — OBITUARY */}
+ {/* PAGE(S) — OBITUARY (auto-paginated) */}
+        {program.obituary && obituaryChunks.map((chunk, chunkIdx) => (
+          <Page
+            key={`obituary-${chunkIdx}`}
+            id={chunkIdx === 0 ? "pdf-page-obituary" : `pdf-page-obituary-${chunkIdx}`}
+            frame={theme.frame}
+            paper={theme.paper}
+            accent={accent}
+            tightPadding
           >
             <h2
               className="font-serif text-3xl italic md:text-4xl"
               style={{ color: `hsl(${accent})` }}
             >
-              Obituary
+              {chunkIdx === 0 ? "Obituary" : "Obituary (cont.)"}
             </h2>
             <div
-              className="mt-5 max-h-full overflow-hidden whitespace-pre-line text-center text-sm leading-relaxed md:text-base"
-              style={{ color: `hsl(${ink})` }}
+              className="mt-5 w-full whitespace-pre-line text-left leading-relaxed"
+              style={{ color: `hsl(${ink})`, fontSize: obituaryFontSize }}
             >
-              {program.obituary}
+              {chunk}
             </div>
           </Page>
-        )}
+        ))}
 
-        {/* PAGE 4 — VOTE OF THANKS */}
+        {/* PAGE — VOTE OF THANKS */}
         {program.voteOfThanks && (
           <Page
             id="pdf-page-vote"
@@ -917,8 +1230,8 @@ const ProgramView = () => {
               Vote Of Thanks
             </h2>
             <p
-              className="mt-6 max-w-md whitespace-pre-line text-center text-sm leading-relaxed md:text-base"
-              style={{ color: `hsl(${soft})` }}
+              className="mt-5 w-full whitespace-pre-line text-left leading-relaxed"
+              style={{ color: `hsl(${ink})`, fontSize: obituaryFontSize }}
             >
               {program.voteOfThanks}
             </p>
@@ -934,17 +1247,20 @@ const ProgramView = () => {
             <h2 className="text-center text-xs uppercase tracking-[0.3em] text-gold">
               Cherished moments
             </h2>
-            <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3">
-              {program.gallery.map((src, i) => (
-                <div
-                  key={i}
-                  className="aspect-square overflow-hidden rounded-lg shadow-soft"
-                >
+            <div
+              className="mt-6 grid gap-3"
+              style={{ gridTemplateColumns: "repeat(2, 1fr)" }}
+            >
+              {program.gallery.slice(0, 4).map((src, i) => (
+                <div key={i} className="aspect-square overflow-hidden rounded-lg shadow-soft">
                   <img
                     src={src}
                     alt=""
                     loading="lazy"
+                    crossOrigin="anonymous"
+                    data-cover=""
                     className="h-full w-full object-cover"
+                    style={{ objectFit: "cover", objectPosition: "50% 50%" }}
                   />
                 </div>
               ))}
@@ -955,7 +1271,7 @@ const ProgramView = () => {
         <p className="text-center text-xs text-whisper print:hidden">
           {year(program.dob)} — {year(program.dop)} · Created with{" "}
           <Link to="/" className="text-gold hover:underline">
-            Eventify
+            HeartView
           </Link>
         </p>
       </article>

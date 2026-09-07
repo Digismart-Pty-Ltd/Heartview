@@ -1,4 +1,4 @@
-const KEY = "eventify_device_id";
+const KEY = "heartview_device_id";
 
 export function getDeviceId(): string {
   try {

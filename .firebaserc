@@ -1,5 +1,9 @@
 {
   "projects": {
-    "default": "eventify-ae6a7"
-  }
+    "default": "heartview-webapp",
+    "old": "eventify-ae6a7",
+    "new": "heartview-webapp"
+  },
+  "targets": {},
+  "etags": {}
 }

@@ -1,6 +1,9 @@
 {
   "hosting": {
     "public": "dist",
+    "predeploy": [
+      "npm run build:deploy"
+    ],
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -8,9 +11,31 @@
     ],
     "rewrites": [
       {
+        "source": "/program/**",
+        "function": "serveProgramMeta"
+      },
+      {
+        "source": "/payment/**",
+        "destination": "/index.html"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
     ]
-  }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
 }

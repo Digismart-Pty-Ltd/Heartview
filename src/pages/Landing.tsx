@@ -2,10 +2,15 @@ import heroImage from "@/assets/hero-lilies.jpg";
 import oliveBranch from "@/assets/olive-branch.png";
 import frameWhite from "@/assets/frame-roses-white.png";
 import crossDove from "@/assets/cross-dove.png";
+import heartViewLogo from "@/assets/heartview-logo.png";
+import heroEvent from "@/assets/hero-event.jpg";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useReveal } from "@/hooks/use-reveal";
+import { auth } from "@/services/firebase";
+import { signOut as firebaseSignOut, onAuthStateChanged } from "firebase/auth";
+import { toast } from "sonner";
 import {
   Heart,
   Share2,
@@ -13,10 +18,12 @@ import {
   Check,
   QrCode,
   Smartphone,
+  ArrowRight,
   ArrowUpRight,
   Menu,
   X,
 } from "lucide-react";
+import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 
 const NAV = [
   { label: "How it works", href: "#how" },
@@ -24,17 +31,34 @@ const NAV = [
   { label: "Pricing", href: "#pricing" },
 ];
 
+
+
 const Landing = () => {
   useReveal();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+
+    setSignedIn(!!auth.currentUser);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setSignedIn(!!user);
+    });
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      unsubscribe();
+    };
   }, []);
+
+  const signOut = async () => {
+    await firebaseSignOut(auth);
+    toast.success("Signed out");
+  };
 
   return (
     <div className="min-h-screen bg-cream text-forest">
@@ -45,8 +69,11 @@ const Landing = () => {
             scrolled ? "shadow-elegant" : ""
           }`}
         >
-          <Link to="/" className="flex items-center gap-2">
-            <span className="display-serif text-xl tracking-tight sm:text-2xl">Eventify</span>
+          <Link to="/" className="flex items-center gap-2.5">
+            <img src={heartViewLogo} alt="HeartView" className="h-8 w-8 sm:h-9 sm:w-9" />
+            <span className="text-lg font-semibold tracking-tight text-forest sm:text-xl">
+              heart<span className="text-terracotta">View</span>
+            </span>
           </Link>
 
           <div className="hidden items-center gap-7 text-sm text-forest/70 md:flex">
@@ -62,8 +89,8 @@ const Landing = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link to="/auth" className="hidden sm:inline-flex">
-              <Button size="sm" className="rounded-full bg-forest text-cream hover:bg-forest-deep">
+            <Link to="/create" className="hidden sm:inline-flex">
+              <Button size="sm" className="rounded-full bg-secondary text-cream hover:bg-secondary/90">
                 Get started <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
               </Button>
             </Link>
@@ -89,13 +116,13 @@ const Landing = () => {
                 key={n.href}
                 href={n.href}
                 onClick={() => setOpen(false)}
-                className="rounded-xl px-4 py-3 text-sm text-forest/80 transition-colors hover:bg-forest/5"
+                className="rounded-xl px-4 py-3 text-sm text-forest/80 transition-colors hover:bg-secondary/10"
               >
                 {n.label}
               </a>
             ))}
-            <Link to="/auth" onClick={() => setOpen(false)} className="mt-2">
-              <Button className="w-full rounded-full bg-forest text-cream hover:bg-forest-deep">
+            <Link to="/create" onClick={() => setOpen(false)} className="mt-2">
+              <Button className="w-full rounded-full bg-secondary text-cream hover:bg-secondary/90">
                 Get started <ArrowUpRight className="ml-1 h-4 w-4" />
               </Button>
             </Link>
@@ -104,82 +131,70 @@ const Landing = () => {
       </header>
 
       {/* HERO */}
-      <section className="relative overflow-hidden bg-gradient-hero pt-28 sm:pt-32">
-        <div className="container grid gap-12 py-12 sm:py-20 lg:grid-cols-12 lg:items-center lg:gap-16 lg:py-28">
-          <div className="space-y-7 lg:col-span-7">
+      <section className="relative overflow-hidden pt-28 sm:pt-32">
+        <div className="absolute inset-0">
+          <img src={heroEvent} alt="" className="absolute inset-0 h-full w-full object-cover object-center z-0" />
+          <div className="absolute inset-0 bg-gradient-to-b from-forest-deep/85 via-forest/60 to-forest-deep/95 z-20" />
+        </div>
+
+        <div className="container relative z-30 grid gap-12 py-12 sm:py-20 lg:grid-cols-12 lg:items-center lg:gap-16 lg:py-28">
+          <div className="space-y-7 lg:col-span-12 text-cream mx-auto max-w-3xl text-center">
             <div className="animate-fade-up flex items-center gap-3">
-              <span className="rule" />
-              <p className="eyebrow">Digital event programs · Est. 2026</p>
+              <span className="rounded-full border border-gold/30 bg-white/5 px-3 py-1 text-sm text-gold inline-flex items-center justify-center">
+                <Sparkles className="inline-block mr-1 h-4 w-4 align-middle text-gold" />
+                <span>Replace printed programs forever</span>
+              </span>
             </div>
 
-            <h1 className="animate-fade-up-delay-1 display-serif text-4xl leading-[1] text-forest sm:text-5xl md:text-7xl lg:text-[5.5rem] lg:leading-[0.95]">
-              Honour every<br />
-              <em className="italic text-terracotta">moment</em> with<br />
-              grace.
+            <h1 className="animate-fade-up-delay-1 display-serif text-4xl leading-[1] text-cream sm:text-5xl md:text-7xl lg:text-[5.5rem] lg:leading-[0.95]">
+              Every event,<br />
+              <em className="italic bg-clip-text text-transparent bg-gradient-to-r from-gold to-terracotta">beautifully</em><br />
+              programmed.
             </h1>
 
-            <p className="animate-fade-up-delay-2 max-w-xl text-base leading-relaxed text-forest/70 sm:text-lg">
-              Beautiful digital programs for funerals, memorials, and gatherings
-              that matter. Crafted in minutes. Shared in seconds. Remembered always.
+            <p className="animate-fade-up-delay-2 max-w-xl text-base leading-relaxed text-cream/80 sm:text-lg">
+              HeartView is the digital event program platform for weddings, memorials,
+              celebrations, conferences, and every gathering in between. Designed in minutes,
+              shared in seconds, remembered always.
             </p>
 
-            <div className="animate-fade-up-delay-3 flex flex-wrap items-center gap-3 sm:gap-4">
-              <Link to="/auth">
-                <Button size="lg" className="rounded-full bg-forest text-cream shadow-elegant transition-transform hover:-translate-y-0.5 hover:bg-forest-deep">
-                  Create your program <ArrowUpRight className="ml-1 h-4 w-4" />
+            <div className="animate-fade-up-delay-3 flex flex-wrap items-center gap-3 sm:gap-4 justify-center">
+              <Link to="/create">
+                <Button
+                  size="lg"
+                  className="relative z-50 rounded-full bg-secondary text-cream shadow-elegant transition-transform hover:scale-105 hover:bg-secondary/90 hover:shadow-lg focus:outline-none"
+                >
+                  Create your program <ArrowRight className="ml-1 h-4 w-4" />
                 </Button>
               </Link>
               <a href="#preview">
-                <Button size="lg" variant="outline" className="rounded-full border-forest/30 text-forest hover:bg-forest/5">
+                <Button size="lg" className="rounded-full border border-cream/30 bg-transparent text-cream shadow-elegant transition-transform hover:scale-105 hover:bg-cream/10 focus:outline-none">
                   See an example
                 </Button>
               </a>
             </div>
 
-            <div className="animate-fade-up-delay-3 flex flex-wrap items-stretch gap-4 pt-4 sm:gap-6 sm:pt-6">
+            <div className="animate-fade-up-delay-3 flex flex-wrap items-stretch gap-4 pt-6 sm:gap-6 justify-center">
               {[
-                { v: "R35", l: "one-time" },
+                { v: "R149", l: "per-program" },
                 { v: "2 min", l: "to create" },
-                { v: "∞", l: "shares" },
               ].map((s, i) => (
                 <div key={i} className="flex items-center gap-4 sm:gap-6">
-                  {i > 0 && <span className="h-10 w-px bg-forest/15" />}
+                  {i > 0 && <span className="h-10 w-px bg-cream/25" />}
                   <div>
-                    <p className="display-serif text-2xl text-forest sm:text-3xl">{s.v}</p>
-                    <p className="eyebrow mt-1">{s.l}</p>
+                    <p className="display-serif text-2xl text-gold sm:text-3xl">{s.v}</p>
+                    <p className="eyebrow mt-1 text-cream/80">{s.l}</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-
-          <div className="relative lg:col-span-5">
-            <div className="reveal animate-float-slow relative overflow-hidden rounded-sm shadow-elegant">
-              <img
-                src={heroImage}
-                alt="White lilies and eucalyptus"
-                className="h-[360px] w-full object-cover sm:h-[460px] lg:h-[560px]"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-forest/30 via-transparent to-transparent" />
-            </div>
-
-            <div className="reveal absolute -bottom-4 -left-2 max-w-[220px] bg-cream p-4 shadow-elegant sm:-bottom-6 sm:-left-6 sm:max-w-[260px] sm:p-6">
-              <div className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-terracotta" />
-                <p className="eyebrow">In loving memory</p>
-              </div>
-              <p className="mt-3 display-serif text-base italic leading-snug text-forest sm:text-lg">
-                "A life beautifully remembered."
-              </p>
-            </div>
-          </div>
         </div>
       </section>
 
-      {/* TRUST MARQUEE */}
       <section className="border-y border-forest/10 bg-cream-deep/40">
         <div className="container flex flex-wrap items-center justify-center gap-x-6 gap-y-3 py-5 text-sm text-forest/60 sm:gap-x-10 sm:py-6">
-          {["Funerals", "Memorials", "Celebrations of life", "Memorial services", "Gatherings"].map((w, i, arr) => (
+          {["Weddings", "Memorials", "Conferences", "Celebrations", "Funerals", "Gatherings"].map((w, i, arr) => (
             <span key={w} className="flex items-center gap-4 sm:gap-10">
               <span className="display-serif italic">{w}</span>
               {i < arr.length - 1 && <span className="h-1 w-1 rounded-full bg-forest/30" />}
@@ -197,7 +212,7 @@ const Landing = () => {
               <p className="eyebrow">The process</p>
             </div>
             <h2 className="mt-6 display-serif text-3xl leading-tight text-forest sm:text-4xl md:text-5xl">
-              Three quiet steps,<br />
+              Three quick steps,<br />
               <em className="italic text-terracotta">one</em> lasting tribute.
             </h2>
           </div>
@@ -209,10 +224,10 @@ const Landing = () => {
           </div>
         </div>
 
-        <div className="mt-12 grid gap-px overflow-hidden rounded-2xl bg-forest/10 sm:mt-16 md:grid-cols-3">
+        <div className="mt-12 grid gap-px overflow-hidden rounded-2xl bg-secondary/10 sm:mt-16 md:grid-cols-3">
           {[
-            { n: "01", t: "Compose", d: "Add names, dates, and the story you wish to tell. Our editor guides you with care.", icon: Sparkles },
-            { n: "02", t: "Curate", d: "Layer in photographs, readings, hymns, and the order of service. Make it unmistakably theirs.", icon: Check },
+            { n: "01", t: "Compose", d: "Add names, dates and the story you wish to tell. Our editor guides you with care.", icon: Sparkles },
+            { n: "02", t: "Curate", d: "Layer in photographs, readings, hymns and the order of service. Make it unmistakably theirs.", icon: Check },
             { n: "03", t: "Share", d: "A private link or printed QR code. Family and friends arrive with a tap.", icon: Share2 },
           ].map((s) => (
             <div key={s.n} className="reveal group bg-cream p-8 transition-colors duration-500 hover:bg-cream-deep/30 sm:p-10">
@@ -228,7 +243,7 @@ const Landing = () => {
       </section>
 
       {/* PREVIEW */}
-      <section id="preview" className="bg-forest text-cream">
+      <section id="preview" className="bg-forest-deep text-cream">
         <div className="container grid gap-12 py-16 sm:py-24 lg:grid-cols-12 lg:items-center lg:gap-16">
           <div className="reveal lg:col-span-6">
             <div className="flex items-center gap-3">
@@ -247,7 +262,7 @@ const Landing = () => {
             <ul className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2">
               {[
                 "Refined editorial typography",
-                "Photo galleries & video tributes",
+                "Photo galleries with elegant layouts",
                 "Order of service & readings",
                 "Guest book & condolence wall",
               ].map((f) => (
@@ -295,31 +310,31 @@ const Landing = () => {
           </h2>
         </div>
 
-        <div className="reveal mx-auto grid max-w-4xl gap-px overflow-hidden rounded-2xl border border-forest/15 bg-forest/10 md:grid-cols-2">
+        <div className="reveal mx-auto grid max-w-4xl gap-px overflow-hidden rounded-2xl border border-secondary/25 bg-secondary/10 md:grid-cols-2">
           <div className="bg-cream p-8 sm:p-12">
-            <p className="eyebrow">Eventify Program</p>
+            <p className="eyebrow">HeartView Program</p>
             <p className="mt-6">
-              <span className="display-serif text-6xl text-forest sm:text-7xl">R35</span>
+              <span className="display-serif text-6xl text-forest sm:text-7xl">R149</span>
               <span className="ml-2 text-sm text-forest/50">ZAR</span>
             </p>
             <p className="mt-4 text-sm text-forest/70">
-              One-time payment. No subscription. Yours forever.
+              One-time payment. One event program. No subscription. Yours forever.
             </p>
-            <Link to="/auth" className="mt-8 inline-block">
-              <Button size="lg" className="rounded-full bg-forest text-cream transition-transform hover:-translate-y-0.5 hover:bg-forest-deep">
-                Begin your program <ArrowUpRight className="ml-1 h-4 w-4" />
+            <Link to="/create" className="mt-8 inline-block">
+              <Button size="lg" className="rounded-full bg-secondary text-cream transition-transform hover:-translate-y-0.5 hover:bg-secondary/90">
+                Create your program <ArrowUpRight className="ml-1 h-4 w-4" />
               </Button>
             </Link>
           </div>
           <div className="bg-cream p-8 sm:p-12">
             <ul className="space-y-4">
               {[
-                "Full digital funeral program",
+                "A Full digital event program",
                 "Custom link & printable QR code",
                 "Mobile-perfect on every device",
-                "Unlimited photos & edits",
+                "Upto four Photos",
                 "Guest condolence wall",
-                "Lifetime access — no expiry",
+                "Unlimited edits — 90-days expiry",
               ].map((f) => (
                 <li key={f} className="flex items-start gap-3 text-sm text-forest">
                   <Check className="mt-0.5 h-4 w-4 shrink-0 text-terracotta" />
@@ -332,7 +347,7 @@ const Landing = () => {
       </section>
 
       {/* CTA */}
-      <section className="bg-forest-deep text-cream">
+      <section className="bg-forest text-cream">
         <div className="container py-16 text-center sm:py-24">
           <div className="reveal flex items-center justify-center gap-3">
             <Smartphone className="h-4 w-4 text-gold" />
@@ -340,39 +355,47 @@ const Landing = () => {
           </div>
           <h2 className="reveal mx-auto mt-6 max-w-3xl display-serif text-4xl leading-tight sm:text-5xl md:text-7xl">
             No stress. <em className="italic text-gold">No printing.</em><br />
-            Just remembrance.
+            Just your moment, shared.
           </h2>
           <p className="reveal mx-auto mt-6 max-w-xl text-base text-cream/70 sm:text-lg">
             Create something worthy of the moment — in the time it takes to make tea.
           </p>
-          <Link to="/auth" className="reveal mt-8 inline-block sm:mt-10">
-            <Button size="lg" className="rounded-full bg-cream text-forest transition-transform hover:-translate-y-0.5 hover:bg-cream/90">
+          <Link to="/create" className="reveal mt-8 inline-block sm:mt-10">
+            <Button size="lg" className="rounded-full bg-secondary text-cream transition-transform hover:-translate-y-0.5 hover:bg-secondary/90">
               Create your program <ArrowUpRight className="ml-1 h-4 w-4" />
             </Button>
           </Link>
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="border-t border-forest/10 bg-cream">
-        <div className="container flex flex-col items-center justify-between gap-4 py-8 text-sm text-forest/60 md:flex-row">
-          <span className="display-serif text-xl text-forest">Eventify</span>
-          <p className="text-center">© 2026 Eventify. Made with care in South Africa.</p>
-  <div className="flex gap-6">
-  <Link to="/terms" className="hover:text-forest">
-    Privacy
-  </Link>
+{/* FOOTER */}
+<footer className="border-t border-navy/10 bg-blush">
+  <div className="container flex flex-col items-center justify-between gap-4 py-8 text-sm text-navy/60 md:flex-row">
+    <span className="flex items-center gap-2 text-forest">
+      <img src={heartViewLogo} alt="" className="h-6 w-6" />
+      <span className="font-semibold">heart<span className="text-terracotta">View</span></span>
+    </span>
 
-  <Link to="/terms" className="hover:text-forest">
-    Terms
-  </Link>
-
-  <Link to="/contact" className="hover:text-forest">
-    Contact
-  </Link>
-</div>
-        </div>
-      </footer>
+    <p className="text-center">
+        &copy; {new Date().getFullYear()} HeartView. All rights reserved. Made with care by{" "}
+        <a
+          href="https://www.dsmart.co.za/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-purple hover:text-purple-deep underline underline-offset-2 transition-colors"
+        >
+          Digismart
+        </a>{" "}
+        in South Africa.
+      </p>
+    <div className="flex gap-6">
+      <Link to="/terms" className="hover:text-navy transition-colors">Privacy</Link>
+      <Link to="/terms" className="hover:text-navy transition-colors">Terms</Link>
+      <Link to="/contact" className="hover:text-navy transition-colors">Contact</Link>
+      <Link to="/admin" className="hover:text-navy transition-colors">Staff</Link>
+    </div>
+  </div>
+</footer>
     </div>
   );
 };
