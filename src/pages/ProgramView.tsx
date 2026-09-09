@@ -202,8 +202,10 @@ function useObituaryChunks(obituary: string, probeRef: React.RefObject<HTMLDivEl
 
   useEffect(() => {
     if (!obituary) return;
+    let cancelled = false;
 
     const measure = () => {
+      if (cancelled) return;
       // probeRef is a hidden div with the same aspect-ratio as a Page but
       // sized to match the *actual* viewport width so measurements are accurate
       // on both desktop and mobile / QR view.
@@ -215,14 +217,32 @@ function useObituaryChunks(obituary: string, probeRef: React.RefObject<HTMLDivEl
       if (!totalW || !totalH) return;
 
       const { contentW, availableH } = getAvailableContentBox(totalW, totalH);
+      // small safety margin so borderline chunks don't clip against
+      // real font-metric rounding differences
+      const SAFETY_PX = 12;
 
-      const result = measureObituaryChunks(obituary, contentW, availableH);
+      const result = measureObituaryChunks(obituary, contentW, availableH - SAFETY_PX);
       setChunks(result);
     };
 
-    // Wait for layout so the probe has real dimensions
-    const raf = requestAnimationFrame(() => setTimeout(measure, 50));
-    return () => cancelAnimationFrame(raf);
+    // Wait for the actual fonts to finish loading before measuring —
+    // this is what was causing the desktop-only overflow (font swap after paint)
+    const runMeasure = () => requestAnimationFrame(() => measure());
+
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(runMeasure);
+    } else {
+      runMeasure();
+    }
+
+    // Re-measure if the probe box ever changes size (resize, zoom, late layout shifts)
+    const ro = new ResizeObserver(() => measure());
+    if (probeRef.current) ro.observe(probeRef.current);
+
+    return () => {
+      cancelled = true;
+      ro.disconnect();
+    };
   }, [obituary, probeRef]);
 
   return chunks;
@@ -233,8 +253,10 @@ function useOrderChunks(order: OrderItem[], probeRef: React.RefObject<HTMLDivEle
 
   useEffect(() => {
     if (!order.length) return;
+    let cancelled = false;
 
     const measure = () => {
+      if (cancelled) return;
       const probe = probeRef.current;
       if (!probe) return;
 
@@ -243,13 +265,27 @@ function useOrderChunks(order: OrderItem[], probeRef: React.RefObject<HTMLDivEle
       if (!totalW || !totalH) return;
 
       const { contentW, availableH } = getAvailableContentBox(totalW, totalH);
+      const SAFETY_PX = 12;
 
-      const result = measureOrderItemChunks(order, contentW, availableH);
+      const result = measureOrderItemChunks(order, contentW, availableH - SAFETY_PX);
       setChunks(result);
     };
 
-    const raf = requestAnimationFrame(() => setTimeout(measure, 50));
-    return () => cancelAnimationFrame(raf);
+    const runMeasure = () => requestAnimationFrame(() => measure());
+
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(runMeasure);
+    } else {
+      runMeasure();
+    }
+
+    const ro = new ResizeObserver(() => measure());
+    if (probeRef.current) ro.observe(probeRef.current);
+
+    return () => {
+      cancelled = true;
+      ro.disconnect();
+    };
   }, [order, probeRef]);
 
   return chunks;
@@ -364,6 +400,10 @@ style={{ maxWidth: "880px", transform: "translateZ(0)", backfaceVisibility: "hid
 
 // ── Styled QR download ────────────────────────────────────────────────────────
 const downloadStyledQRCode = async (url: string, programName: string) => {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const iosQrWindow = isIOS ? window.open("about:blank", "_blank") : null;
+
   try {
     const size = 600;
     const qrCanvas = document.createElement("canvas");
@@ -440,13 +480,54 @@ const downloadStyledQRCode = async (url: string, programName: string) => {
     ctx.font = "italic 12px Georgia, serif";
     ctx.fillText("heartView", out.width / 2, labelY + 66);
 
-    const link = document.createElement("a");
-    link.href = out.toDataURL("image/png");
-    link.download = `${programName}-qr-code.png`;
-    link.click();
-    toast.success("QR code downloaded");
+    const blob: Blob | null = await new Promise((resolve) =>
+      out.toBlob(resolve, "image/png")
+    );
+    if (!blob) throw new Error("Could not create QR image");
+
+    const fileName = `${programName}-qr-code.png`;
+    const imageUrl = URL.createObjectURL(blob);
+
+    if (isIOS) {
+      const shareNavigator = navigator as Navigator & {
+        canShare?: (data: { files: File[] }) => boolean;
+        share?: (data: { files: File[]; title?: string }) => Promise<void>;
+      };
+      const imageFile = new File([blob], fileName, { type: "image/png" });
+
+      if (shareNavigator.share && shareNavigator.canShare?.({ files: [imageFile] })) {
+        iosQrWindow?.close();
+        try {
+          await shareNavigator.share({ files: [imageFile], title: fileName });
+          toast.success("QR code ready to save");
+        } catch (shareError) {
+          if ((shareError as DOMException).name === "AbortError") {
+            toast.info("QR sharing canceled");
+          } else {
+            if (iosQrWindow) iosQrWindow.location.href = imageUrl;
+            else window.location.href = imageUrl;
+            toast.success("QR code opened — tap Share, then Save Image");
+          }
+        }
+      } else if (iosQrWindow) {
+        iosQrWindow.location.href = imageUrl;
+        toast.success("QR code opened — tap Share, then Save Image");
+      } else {
+        window.location.href = imageUrl;
+        toast.success("QR code opened — tap Share, then Save Image");
+      }
+    } else {
+      const link = document.createElement("a");
+      link.href = imageUrl;
+      link.download = fileName;
+      link.click();
+      toast.success("QR code downloaded");
+    }
+
+    setTimeout(() => URL.revokeObjectURL(imageUrl), 60000);
   } catch (error) {
     console.error(error);
+    iosQrWindow?.close();
     toast.error("Failed to generate QR code");
   }
 };
@@ -994,16 +1075,21 @@ if (program.obituary) {
           <h2 className="font-serif text-3xl italic" style={{ color: `hsl(${accent})` }}>
             Cherished Moments
           </h2>
-          <div
-            className="mt-6 grid grid-cols-2 gap-3"
-            style={{ gridTemplateColumns: "repeat(2, 1fr)" }}
-          >
-            {program.gallery.slice(0, 4).map((src, i) => (
-              <div key={i} className="aspect-square overflow-hidden rounded-lg shadow-soft">
-                <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" />
-              </div>
-            ))}
-          </div>
+<div className="mx-auto mt-10 flex w-[86%] flex-wrap justify-center gap-3">
+  {program.gallery.slice(0, 4).map((src, i) => (
+    <div
+      key={i}
+      className="aspect-square w-[calc(50%-0.375rem)] overflow-hidden rounded-lg shadow-soft"
+    >
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        className="h-full w-full object-cover object-center"
+      />
+    </div>
+  ))}
+</div>
         </>
       ),
     });
@@ -1435,31 +1521,29 @@ if (program.obituary) {
 
         {/* GALLERY */}
         {program.gallery.length > 0 && (
-          <div
-            id="pdf-page-gallery"
-            className="mx-auto max-w-2xl rounded-2xl bg-card p-6 shadow-paper md:p-10"
-          >
-            <h2 className="text-center text-xs uppercase tracking-[0.3em] text-gold">
-              Cherished moments
-            </h2>
-            <div
-              className="mt-6 grid gap-3"
-              style={{ gridTemplateColumns: "repeat(2, 1fr)" }}
-            >
-              {program.gallery.slice(0, 4).map((src, i) => (
-                <div key={i} className="aspect-square overflow-hidden rounded-lg shadow-soft">
-                  <img
-                    src={src}
-                    alt=""
-                    loading="lazy"
-                    crossOrigin="anonymous"
-                    data-cover=""
-                    className="h-full w-full object-cover"
-                    style={{ objectFit: "cover", objectPosition: "50% 50%" }}
-                  />
-                </div>
-              ))}
-            </div>
+          <div className="mx-auto w-full max-w-sm">
+            <Page id="pdf-page-gallery" frame={theme.frame} paper={theme.paper} accent={accent}>
+              <h2 className="font-serif text-3xl italic" style={{ color: `hsl(${accent})` }}>
+                Cherished Moments
+              </h2>
+              <div className="mx-auto mt-10 flex w-[86%] flex-wrap justify-center gap-3">
+                {program.gallery.slice(0, 4).map((src, i) => (
+                  <div
+                    key={i}
+                    className="aspect-square w-[calc(50%-0.375rem)] overflow-hidden rounded-lg shadow-soft"
+                  >
+                    <img
+                      src={src}
+                      alt=""
+                      loading="lazy"
+                      crossOrigin="anonymous"
+                      data-cover=""
+                      className="h-full w-full object-cover object-center"
+                    />
+                  </div>
+                ))}
+              </div>
+            </Page>
           </div>
         )}
 

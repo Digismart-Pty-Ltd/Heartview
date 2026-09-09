@@ -266,17 +266,38 @@ const parts = program.name.trim().split(/\s+/);
   const [currentPage, setCurrentPage] = useState(0);
 
   useEffect(() => {
-    if (!program.obituary || !obituaryProbeRef.current) return;
-    const el = obituaryProbeRef.current;
-    const totalH = el.offsetHeight;
-    const totalW = el.offsetWidth;
-    if (!totalH || !totalW) return;
-    const contentW = totalW * (1 - 0.18 * 2);
-    const headingPx = totalW * 0.042;
-    const availableH = totalH * (1 - 0.20 - 0.30) - headingPx - totalW * 0.02;
-    const result = measureObituaryChunks(program.obituary, contentW, availableH);
-    setObituaryChunks(result);
-  }, [program.obituary, obituaryProbeRef]);
+    if (!program.obituary) return;
+    let cancelled = false;
+
+    const measure = () => {
+      if (cancelled || !obituaryProbeRef.current) return;
+      const el = obituaryProbeRef.current;
+      const totalH = el.offsetHeight;
+      const totalW = el.offsetWidth;
+      if (!totalH || !totalW) return;
+      const contentW = totalW * (1 - 0.18 * 2);
+      const headingPx = totalW * 0.042;
+      const SAFETY_PX = 12;
+      const availableH = totalH * (1 - 0.20 - 0.30) - headingPx - totalW * 0.02 - SAFETY_PX;
+      const result = measureObituaryChunks(program.obituary, contentW, availableH);
+      setObituaryChunks(result);
+    };
+
+    const runMeasure = () => requestAnimationFrame(() => measure());
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(runMeasure);
+    } else {
+      runMeasure();
+    }
+
+    const ro = new ResizeObserver(() => measure());
+    if (obituaryProbeRef.current) ro.observe(obituaryProbeRef.current);
+
+    return () => {
+      cancelled = true;
+      ro.disconnect();
+    };
+  }, [program.obituary]);
 
     const voteProbeRef = useRef<HTMLDivElement>(null);
   const [voteChunks, setVoteChunks] = useState<string[]>(
@@ -284,33 +305,75 @@ const parts = program.name.trim().split(/\s+/);
   );
 
   useEffect(() => {
-    if (!program.voteOfThanks || !voteProbeRef.current) return;
-    const el = voteProbeRef.current;
-    const totalH = el.offsetHeight;
-    const totalW = el.offsetWidth;
-    if (!totalH || !totalW) return;
-    const contentW = totalW * (1 - 0.18 * 2);
-    const headingPx = totalW * 0.042;
-    const availableH = totalH * (1 - 0.20 - 0.30) - headingPx - totalW * 0.02;
-    const result = measureObituaryChunks(program.voteOfThanks, contentW, availableH);
-    setVoteChunks(result);
-  }, [program.voteOfThanks, voteProbeRef]);
+    if (!program.voteOfThanks) return;
+    let cancelled = false;
+
+    const measure = () => {
+      if (cancelled || !voteProbeRef.current) return;
+      const el = voteProbeRef.current;
+      const totalH = el.offsetHeight;
+      const totalW = el.offsetWidth;
+      if (!totalH || !totalW) return;
+      const contentW = totalW * (1 - 0.18 * 2);
+      const headingPx = totalW * 0.042;
+      const SAFETY_PX = 12;
+      const availableH = totalH * (1 - 0.20 - 0.30) - headingPx - totalW * 0.02 - SAFETY_PX;
+      const result = measureObituaryChunks(program.voteOfThanks, contentW, availableH);
+      setVoteChunks(result);
+    };
+
+    const runMeasure = () => requestAnimationFrame(() => measure());
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(runMeasure);
+    } else {
+      runMeasure();
+    }
+
+    const ro = new ResizeObserver(() => measure());
+    if (voteProbeRef.current) ro.observe(voteProbeRef.current);
+
+    return () => {
+      cancelled = true;
+      ro.disconnect();
+    };
+  }, [program.voteOfThanks]);
 
   const orderProbeRef = useRef<HTMLDivElement>(null);
   const [orderChunks, setOrderChunks] = useState<OrderItem[][]>(() => chunkOrderItems(program.order));
 
   useEffect(() => {
-    if (!program.order.length || !orderProbeRef.current) return;
-    const el = orderProbeRef.current;
-    const totalH = el.offsetHeight;
-    const totalW = el.offsetWidth;
-    if (!totalH || !totalW) return;
-    const contentW = totalW * (1 - 0.18 * 2);
-    const headingPx = totalW * 0.042;
-    const availableH = totalH * (1 - 0.20 - 0.30) - headingPx - totalW * 0.02;
-    const result = measureOrderItemChunks(program.order, contentW, availableH);
-    setOrderChunks(result);
-  }, [program.order, orderProbeRef]);
+    if (!program.order.length) return;
+    let cancelled = false;
+
+    const measure = () => {
+      if (cancelled || !orderProbeRef.current) return;
+      const el = orderProbeRef.current;
+      const totalH = el.offsetHeight;
+      const totalW = el.offsetWidth;
+      if (!totalH || !totalW) return;
+      const contentW = totalW * (1 - 0.18 * 2);
+      const headingPx = totalW * 0.042;
+      const SAFETY_PX = 12;
+      const availableH = totalH * (1 - 0.20 - 0.30) - headingPx - totalW * 0.02 - SAFETY_PX;
+      const result = measureOrderItemChunks(program.order, contentW, availableH);
+      setOrderChunks(result);
+    };
+
+    const runMeasure = () => requestAnimationFrame(() => measure());
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(runMeasure);
+    } else {
+      runMeasure();
+    }
+
+    const ro = new ResizeObserver(() => measure());
+    if (orderProbeRef.current) ro.observe(orderProbeRef.current);
+
+    return () => {
+      cancelled = true;
+      ro.disconnect();
+    };
+  }, [program.order]);
 
   type PageDef = { key: string; label: string; content: React.ReactNode };
   const pages: PageDef[] = [];
@@ -321,12 +384,12 @@ const parts = program.name.trim().split(/\s+/);
     label: "Cover",
     content: (
       <>
-        <p className="font-serif text-base italic md:text-xl" style={{ color: `hsl(${accent})` }}>
+        <p className="font-serif text-base italic" style={{ color: `hsl(${accent})` }}>
           In loving memory of
         </p>
         {program.profilePhoto && (
           <div
-            className="mx-auto mt-3 h-32 w-32 shrink-0 overflow-hidden rounded-full border-[3px] shadow-soft md:h-40 md:w-40"
+            className="mx-auto mt-3 h-[140px] w-28 shrink-0 overflow-hidden rounded-[50%] border-[3px] shadow-soft"
             style={{ borderColor: `hsl(${accent} / 0.5)` }}
           >
             <img
@@ -337,21 +400,21 @@ const parts = program.name.trim().split(/\s+/);
           </div>
         )}
         <h1
-          className="mt-3 font-serif text-2xl uppercase tracking-wide md:text-4xl"
+          className="mt-3 font-serif text-2xl uppercase tracking-wide"
           style={{ color: `hsl(${ink})` }}
         >
           {givenNames}
         </h1>
         {lastName && (
-          <p className="mt-1 font-serif text-xl italic md:text-2xl" style={{ color: `hsl(${accent})` }}>
+          <p className="mt-1 font-serif text-xl italic" style={{ color: `hsl(${accent})` }}>
             {lastName}
           </p>
         )}
-        <p className="mt-3 font-serif text-xs italic md:text-sm" style={{ color: `hsl(${soft})` }}>
+        <p className="mt-3 font-serif text-xs italic" style={{ color: `hsl(${soft})` }}>
           {formatDate(program.dob)} — {formatDate(program.dop)}
         </p>
         {program.tribute && (
-          <p className="mt-2 font-serif text-sm italic md:text-base" style={{ color: `hsl(${soft})` }}>
+          <p className="mt-2 font-serif text-sm italic" style={{ color: `hsl(${soft})` }}>
             {program.tribute}
           </p>
         )}
@@ -386,7 +449,7 @@ const parts = program.name.trim().split(/\s+/);
         content: (
           <>
             <h2
-              className="font-serif text-3xl italic md:text-4xl"
+              className="font-serif text-3xl italic"
               style={{ color: `hsl(${accent})` }}
             >
               {chunkIdx === 0 ? "Obituary" : "Obituary (cont.)"}
@@ -412,7 +475,7 @@ const parts = program.name.trim().split(/\s+/);
         content: (
           <>
             <h2
-              className="font-serif text-3xl italic md:text-4xl"
+              className="font-serif text-3xl italic"
               style={{ color: `hsl(${accent})` }}
             >
               {chunkIdx === 0 ? "Vote Of Thanks" : "Vote Of Thanks (cont.)"}
@@ -437,18 +500,26 @@ const parts = program.name.trim().split(/\s+/);
       content: (
         <>
           <h2
-            className="font-serif text-3xl italic md:text-4xl"
+            className="font-serif text-3xl italic"
             style={{ color: `hsl(${accent})` }}
           >
             Cherished Moments
           </h2>
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            {program.gallery.slice(0, MAX_GALLERY).map((src, i) => (
-              <div key={i} className="aspect-square overflow-hidden rounded-lg shadow-soft">
-                <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" />
-              </div>
-            ))}
-          </div>
+<div className="mx-auto mt-10 flex w-[86%] flex-wrap justify-center gap-3">
+  {program.gallery.slice(0, MAX_GALLERY).map((src, i) => (
+    <div
+      key={i}
+      className="aspect-square w-[calc(50%-0.375rem)] overflow-hidden rounded-lg shadow-soft"
+    >
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        className="h-full w-full object-cover object-center"
+      />
+    </div>
+  ))}
+</div>
         </>
       ),
     });
@@ -460,24 +531,24 @@ const parts = program.name.trim().split(/\s+/);
       <div
         ref={obituaryProbeRef}
         aria-hidden
-        className="pointer-events-none fixed opacity-0"
-        style={{ aspectRatio: "3 / 4", width: "880px", top: "-9999px", left: "-9999px" }}
+        className="program-page-probe pointer-events-none fixed opacity-0"
+        style={{ width: "min(384px, 100vw - 2rem)", top: "-9999px", left: "-9999px" }}
       />
 
       {/* Invisible probe for vote-of-thanks measurement */}
       <div
         ref={voteProbeRef}
         aria-hidden
-        className="pointer-events-none fixed opacity-0"
-        style={{ aspectRatio: "3 / 4", width: "880px", top: "-9999px", left: "-9999px" }}
+        className="program-page-probe pointer-events-none fixed opacity-0"
+        style={{ width: "min(384px, 100vw - 2rem)", top: "-9999px", left: "-9999px" }}
       />
 
             {/* Invisible probe for order-of-service measurement */}
       <div
         ref={orderProbeRef}
         aria-hidden
-        className="pointer-events-none fixed opacity-0"
-        style={{ aspectRatio: "3 / 4", width: "880px", top: "-9999px", left: "-9999px" }}
+        className="program-page-probe pointer-events-none fixed opacity-0"
+        style={{ width: "min(384px, 100vw - 2rem)", top: "-9999px", left: "-9999px" }}
       />
 
             {/* Header */}
@@ -536,7 +607,7 @@ const parts = program.name.trim().split(/\s+/);
 
         {/* Page preview */}
         <div className="relative">
-          <div className={pages[currentPage].key === "cover" ? "mx-auto w-full max-w-sm" : ""}>
+          <div className="mx-auto w-full max-w-sm">
             <Page frame={theme.frame} paper={theme.paper} accent={accent}>
               {pages[currentPage].content}
             </Page>

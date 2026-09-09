@@ -43,7 +43,17 @@ exports.serveProgramMeta = functions.https.onRequest(async (req, res) => {
   if (!isCrawler || !programId) {
     try {
       const indexPath = path.join(__dirname, "index.html"); // copied in during predeploy step
-      const html = fs.readFileSync(indexPath, "utf8");
+      let html = fs.readFileSync(indexPath, "utf8");
+
+      // Recover if the function has an older shell than Firebase Hosting.
+      if (html.includes('src="/src/main.tsx"')) {
+        const origin = `${req.protocol}://${req.get("host")}`;
+        const shellResponse = await fetch(`${origin}/index.html`, {
+          headers: { "User-Agent": "HeartView-SPA-Shell" },
+        });
+        if (shellResponse.ok) html = await shellResponse.text();
+      }
+
       res.set("Cache-Control", "no-store");
       return res.send(html);
     } catch (err) {
@@ -96,7 +106,7 @@ exports.createPendingPayment = onCall(async (req) => {
   const paymentId = crypto.randomUUID();
   await db.collection("payments").doc(paymentId).set({
     status: "pending",
-    amountCents: 14900, // R149 — fixed server-side, never trust a client-sent amount
+    amountCents: 200, // R2.00 — fixed server-side, never trust a client-sent amount
     userId: req.auth.uid,
     programDraft: req.data.programDraft,
     createdAt: Date.now(),
