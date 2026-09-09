@@ -34,8 +34,11 @@ async function uniqueProgramId(name, dop) {
 
 exports.serveProgramMeta = functions.https.onRequest(async (req, res) => {
   const userAgent = req.get("User-Agent") || "";
-  const isCrawler = /facebookexternalhit|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Discordbot/i.test(userAgent);
-
+  const isDirectVisit = req.query.hv_direct === "1";
+  const isCrawler = !isDirectVisit && (
+    /facebookexternalhit|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot/i.test(userAgent) ||
+    /^WhatsApp\//i.test(userAgent)
+  );
   // req.path looks like /program/abc123
   const programId = req.path.split("/").filter(Boolean).pop();
 
@@ -73,6 +76,14 @@ exports.serveProgramMeta = functions.https.onRequest(async (req, res) => {
     const description = "View this memorial program on HeartView";
     const url = `https://heartview.co.za/program/${programId}`;
 
+    // Real crawlers never run this script — they only parse the meta tags below.
+    // Any actual browser (including WhatsApp's in-app WebView, which shares the
+    // "WhatsApp/" User-Agent with the preview bot) will execute it and get sent
+    // to the real SPA. hv_direct=1 stops the redirect from looping back here.
+    const redirectParams = new URLSearchParams(req.query);
+    redirectParams.set("hv_direct", "1");
+    const redirectUrl = `${url}?${redirectParams.toString()}`;
+
     res.set("Cache-Control", "public, max-age=300");
     return res.send(`<!DOCTYPE html>
 <html>
@@ -89,7 +100,9 @@ exports.serveProgramMeta = functions.https.onRequest(async (req, res) => {
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
   </head>
-  <body></body>
+  <body>
+    <script>window.location.replace(${JSON.stringify(redirectUrl)});</script>
+  </body>
 </html>`);
   } catch (err) {
     console.error(err);
@@ -106,7 +119,7 @@ exports.createPendingPayment = onCall(async (req) => {
   const paymentId = crypto.randomUUID();
   await db.collection("payments").doc(paymentId).set({
     status: "pending",
-    amountCents: 200, // R2.00 — fixed server-side, never trust a client-sent amount
+    amountCents: 200, // R2 — fixed server-side, never trust a client-sent amount
     userId: req.auth.uid,
     programDraft: req.data.programDraft,
     createdAt: Date.now(),
